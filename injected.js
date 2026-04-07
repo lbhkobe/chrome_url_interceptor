@@ -74,6 +74,29 @@
     }
   }
 
+  /**
+   * Evaluate a rule's response body.
+   * - responseType === 'function': treat rule.response as a JS function body,
+   *   execute it and return the result as a string. The function can use
+   *   Date, Math, JSON, parseInt, etc. and must `return` a value.
+   * - Otherwise: return rule.response as-is (static string).
+   */
+  function getResponseBody(rule) {
+    if (rule.responseType === 'function') {
+      try {
+        // Wrap in a real Function so `return` works at the top level
+        var fn = new Function(rule.response || 'return "";');
+        var result = fn();
+        if (result == null) return '';
+        if (typeof result === 'string') return result;
+        return JSON.stringify(result);
+      } catch (e) {
+        return JSON.stringify({ __mock_error__: 'Response function threw: ' + e.message });
+      }
+    }
+    return rule.response || '';
+  }
+
   function findRule(url, bodyStr) {
     var rules = getRules();
     // Debug: log every URL from the target host to see exactly what paths are checked
@@ -145,7 +168,7 @@
     if (rule) {
       console.log('[URL Interceptor] ✅ fetch intercepted:', url, '→ status', rule.status || 200);
       return Promise.resolve(
-        new Response(rule.response || '', {
+        new Response(getResponseBody(rule), {
           status: rule.status || 200,
           statusText: 'OK',
           headers: { 'Content-Type': rule.contentType || 'application/json' }
@@ -200,8 +223,9 @@
         def('readyState',   4);
         def('status',       rule.status || 200);
         def('statusText',   'OK');
-        def('responseText', rule.response || '');
-        def('response',     rule.response || '');
+        var _body = getResponseBody(rule);
+        def('responseText', _body);
+        def('response',     _body);
         def('responseURL',  data.url);
 
         try { if (typeof xhr.onreadystatechange === 'function') xhr.onreadystatechange(new Event('readystatechange')); } catch (e) {}

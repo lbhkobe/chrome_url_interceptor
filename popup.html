@@ -95,8 +95,18 @@
           Response Body
           <button id="formatBtn" class="inline-btn" title="Format JSON">Format</button>
         </label>
+        <!-- Response mode: Static JSON | JS Function -->
+        <div class="mode-seg" style="margin-bottom:6px">
+          <button type="button" class="mode-btn active" data-mode="static">Static JSON</button>
+          <button type="button" class="mode-btn" data-mode="function">&#9889; JS Function</button>
+        </div>
         <textarea id="responseInput" spellcheck="false"
           placeholder='{"code": 0, "data": {}, "message": "ok"}'></textarea>
+        <div id="fnHint" class="fn-hint" style="display:none">
+          Write a JS function body — use <code>return</code> to produce the response.<br>
+          Available globals: <code>Date</code>&nbsp;&middot;&nbsp;<code>Math</code>&nbsp;&middot;&nbsp;<code>JSON</code>&nbsp;&middot;&nbsp;<code>parseInt</code>&nbsp;&middot;&nbsp;<code>parseFloat</code>&nbsp;&middot;&nbsp;<code>Array</code>&nbsp;&middot;&nbsp;<code>Object</code><br>
+          Return a <strong>string</strong> or an <strong>object</strong> (auto-serialised).
+        </div>
       </div>
 
       <div class="modal-footer">

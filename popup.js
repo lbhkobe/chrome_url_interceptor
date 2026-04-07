@@ -44,6 +44,9 @@ function renderRules() {
           return `<span class="badge badge-body" title="Body conditions:\n${escHtml(lines.join('\n'))}">${escHtml(label)}</span>`;
         })()
       : '';
+    const fnBadge = rule.responseType === 'function'
+      ? '<span class="badge badge-fn" title="Dynamic JS function response">&#9889;&nbsp;fn</span>'
+      : '';
     return `
       <div class="rule-item ${rule.enabled === false ? 'disabled' : ''}">
         <div class="rule-info">
@@ -52,6 +55,7 @@ function renderRules() {
           <div class="rule-meta">
             <span class="badge ${badgeClass}">${st}</span>
             <span class="badge">${escHtml(ct)}</span>
+            ${fnBadge}
             ${bodyBadge}
           </div>
         </div>
@@ -107,6 +111,15 @@ function bindEvents() {
     if (e.target === document.getElementById('modal')) closeModal();
   });
 
+  // Mode buttons (Static JSON / JS Function)
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updateResponseMode(btn.dataset.mode);
+    });
+  });
+
   // Format JSON button
   document.getElementById('formatBtn').addEventListener('click', () => {
     const ta = document.getElementById('responseInput');
@@ -148,7 +161,6 @@ function bindEvents() {
     }
   });
 
-  // Enter to save in modal
   document.getElementById('patternInput').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') saveRule();
   });
@@ -217,6 +229,13 @@ function openModal(index) {
   document.getElementById('contentTypeSelect').value = rule ? rule.contentType : 'application/json';
   document.getElementById('responseInput').value     = rule ? rule.response    : '';
 
+  // Restore response mode
+  const rt = rule ? (rule.responseType || 'static') : 'static';
+  document.querySelectorAll('.mode-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === rt);
+  });
+  updateResponseMode(rt);
+
   // Expand popup height so the fixed-position modal is fully visible
   document.body.style.height = '560px';
   document.getElementById('modal').classList.remove('hidden');
@@ -238,13 +257,14 @@ function saveRule() {
   }
 
   const rule = {
-    alias:       document.getElementById('aliasInput').value.trim(),
-    pattern:     pattern,
-    bodyPattern: document.getElementById('bodyPatternInput').value.trim() || '',
-    status:      parseInt(document.getElementById('statusInput').value, 10) || 200,
-    contentType: document.getElementById('contentTypeSelect').value,
-    response:    document.getElementById('responseInput').value,
-    enabled:     editingIndex >= 0 ? rules[editingIndex].enabled : true
+    alias:        document.getElementById('aliasInput').value.trim(),
+    pattern:      pattern,
+    bodyPattern:  document.getElementById('bodyPatternInput').value.trim() || '',
+    status:       parseInt(document.getElementById('statusInput').value, 10) || 200,
+    contentType:  document.getElementById('contentTypeSelect').value,
+    responseType: (document.querySelector('.mode-btn.active') || {}).dataset?.mode || 'static',
+    response:     document.getElementById('responseInput').value,
+    enabled:      editingIndex >= 0 ? rules[editingIndex].enabled : true
   };
 
   if (editingIndex >= 0) {
@@ -332,6 +352,33 @@ async function injectRulesToActiveTab() {
     });
   } catch (e) {
     // Non-injectable tabs (chrome://, PDF, etc.) — silently ignore
+  }
+}
+
+// ======================== Response mode ========================
+
+function updateResponseMode(mode) {
+  const ta     = document.getElementById('responseInput');
+  const fmtBtn = document.getElementById('formatBtn');
+  const hint   = document.getElementById('fnHint');
+  if (mode === 'function') {
+    ta.placeholder = [
+      '// Available: Date, Math, JSON, parseInt, parseFloat, Array, Object ...',
+      '// Return a string or an object (objects are auto-serialised).',
+      '',
+      'return JSON.stringify({',
+      '  code: 0,',
+      '  time: Date.now(),',
+      '  date: new Date().toISOString(),',
+      '  rand: Math.floor(Math.random() * 100)',
+      '});'
+    ].join('\n');
+    fmtBtn.style.display = 'none';
+    if (hint) hint.style.display = 'block';
+  } else {
+    ta.placeholder = '{"code": 0, "data": {}, "message": "ok"}';
+    fmtBtn.style.display = '';
+    if (hint) hint.style.display = 'none';
   }
 }
 
