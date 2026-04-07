@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>URL Interceptor</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+
+    <!-- Header -->
+    <header>
+      <div class="header-left">
+        <svg class="logo" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M7 16l-4-4 4-4M17 8l4 4-4 4M14 4l-4 16" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="title">URL Interceptor</span>
+      </div>
+      <label class="toggle" title="Enable / Disable all rules">
+        <input type="checkbox" id="enableToggle">
+        <span class="slider"></span>
+      </label>
+    </header>
+
+    <!-- Rule list -->
+    <div id="ruleList" class="rule-list"></div>
+
+    <!-- Footer actions -->
+    <div class="footer">
+      <button id="addRuleBtn" class="btn btn-primary">+ Add Rule</button>
+      <button id="applyBtn" class="btn btn-secondary" title="Re-inject rules into the current tab without reloading">
+        Inject to Tab
+      </button>
+      <button id="exportBtn" class="btn btn-secondary" title="Export all rules as JSON file">⬇ Export</button>
+      <label id="importLabel" class="btn btn-secondary" title="Import rules from JSON file" style="cursor:pointer;">
+        ⬆ Import
+        <input type="file" id="importFile" accept=".json" style="display:none;">
+      </label>
+    </div>
+
+  </div>
+
+  <!-- Add / Edit rule modal -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-content">
+      <h2 id="modalTitle">Add Rule</h2>
+
+      <div class="form-group">
+        <label for="aliasInput">
+          Alias
+          <span class="optional-tag">optional</span>
+        </label>
+        <input type="text" id="aliasInput" placeholder="e.g. 月度报表 – 单品code 1757">
+      </div>
+
+      <div class="form-group">
+        <label for="patternInput">URL Pattern <span class="required">*</span></label>
+        <input type="text" id="patternInput"
+          placeholder="https://api.example.com/data  or  */api/user*  or  /regex/">
+        <small>Wildcard <code>*</code>, substring, or regex <code>/pattern/</code></small>
+      </div>
+
+      <div class="form-group">
+        <label for="bodyPatternInput">
+          Body Contains
+          <span class="optional-tag">optional · one condition per line · ALL must match</span>
+        </label>
+        <textarea id="bodyPatternInput" rows="3" spellcheck="false"
+          placeholder='Each line is an AND condition, e.g.:
+"code":"1757"
+"date_c","op":"=","value":"20260228"'></textarea>
+        <small>Each non-empty line must appear as a substring in the POST body (AND logic).</small>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="statusInput">Status Code</label>
+          <input type="number" id="statusInput" value="200" min="100" max="599">
+        </div>
+        <div class="form-group">
+          <label for="contentTypeSelect">Content-Type</label>
+          <select id="contentTypeSelect">
+            <option value="application/json">application/json</option>
+            <option value="text/plain">text/plain</option>
+            <option value="text/html">text/html</option>
+            <option value="application/xml">application/xml</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="responseInput">
+          Response Body
+          <button id="formatBtn" class="inline-btn" title="Format JSON">Format</button>
+        </label>
+        <textarea id="responseInput" spellcheck="false"
+          placeholder='{"code": 0, "data": {}, "message": "ok"}'></textarea>
+      </div>
+
+      <div class="modal-footer">
+        <button id="cancelBtn" class="btn btn-secondary">Cancel</button>
+        <button id="saveRuleBtn" class="btn btn-primary">Save Rule</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
