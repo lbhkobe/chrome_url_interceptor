@@ -10,6 +10,14 @@
   window.__txcs_interceptor_injected__ = true;
 
   function getRules() {
+    // Rules are delivered by the isolated-world content script via a shared DOM
+    // attribute (the only channel that crosses the MAIN/ISOLATED world boundary
+    // without inline <script> injection, which the page CSP blocks). Read it
+    // lazily on every request so live rule updates take effect immediately.
+    try {
+      var raw = document.documentElement.getAttribute('data-txcs-rules');
+      if (raw) { return JSON.parse(raw); }
+    } catch (e) { /* fall through */ }
     return window.__txcs_rules__ || [];
   }
 
@@ -104,6 +112,10 @@
       console.log('[URL Interceptor] 🔎 ascp-dc URL in override:', url.substring(0, 200),
         bodyStr ? '| body: ' + bodyStr.substring(0, 100) : '');
     }
+    if (url.indexOf('ppzh.jd.com') !== -1) {
+      console.log('[URL Interceptor] 🔎 ppzh URL seen | rules available:', rules.length,
+        '| url:', url.substring(0, 200));
+    }
     for (var i = 0; i < rules.length; i++) {
       var rule = rules[i];
 
@@ -180,27 +192,30 @@
 
   /* ------------------------------------------------------------------ */
   /* Override XMLHttpRequest                                               */
+  /* Dual strategy:                                                        */
+  /*  1. Prototype override  — catches normal XHR usage                   */
+  /*  2. Constructor proxy   — catches SDKs (e.g. SGM) that capture       */
+  /*     the original send/open refs in a closure before our proto patch  */
   /* ------------------------------------------------------------------ */
-  var _origOpen = XMLHttpRequest.prototype.open;
-  var _origSend = XMLHttpRequest.prototype.send;
-  var _xhrMap = new WeakMap();
+  var _origXHRCtor = window.XMLHttpRequest;
+  var _origOpen    = _origXHRCtor.prototype.open;
+  var _origSend    = _origXHRCtor.prototype.send;
+  var _xhrMap      = new WeakMap();
 
-  XMLHttpRequest.prototype.open = function (method, url) {
+  // ── shared open/send logic (used by both proto override & ctor proxy) ──
+  function _xhrOpen(instance, method, url, origOpenFn, args) {
     diagLog(String(url));
-    var rule = findRule(String(url));  // body matched later in .send()
+    var rule = findRule(String(url));
     if (rule) {
-      _xhrMap.set(this, { rule: rule, url: String(url) });
+      _xhrMap.set(instance, { rule: rule, url: String(url) });
     } else {
-      _xhrMap.delete(this);
-      // Store URL so .send() can re-check with body
-      _xhrMap.set(this, { rule: null, url: String(url) });
+      _xhrMap.set(instance, { rule: null, url: String(url) });
     }
-    return _origOpen.apply(this, arguments);
-  };
+    return origOpenFn.apply(instance, args);
+  }
 
-  XMLHttpRequest.prototype.send = function (body) {
-    var data = _xhrMap.get(this);
-    // If open() found no match, try again with body
+  function _xhrSend(instance, body, origSendFn) {
+    var data = _xhrMap.get(instance);
     if (data && !data.rule && body != null) {
       var bodyStr = typeof body === 'string' ? body : '';
       if (bodyStr) {
@@ -210,16 +225,12 @@
     }
     if (data && data.rule) {
       var rule = data.rule;
-      var xhr = this;
+      var xhr  = instance;
       console.log('[URL Interceptor] ✅ XHR intercepted:', data.url, '→ status', rule.status || 200);
-
       setTimeout(function () {
         var def = function (prop, val) {
-          try {
-            Object.defineProperty(xhr, prop, { value: val, configurable: true, writable: true });
-          } catch (e) { /* read-only in some envs */ }
+          try { Object.defineProperty(xhr, prop, { value: val, configurable: true, writable: true }); } catch (e) {}
         };
-
         def('readyState',   4);
         def('status',       rule.status || 200);
         def('statusText',   'OK');
@@ -227,7 +238,6 @@
         def('responseText', _body);
         def('response',     _body);
         def('responseURL',  data.url);
-
         try { if (typeof xhr.onreadystatechange === 'function') xhr.onreadystatechange(new Event('readystatechange')); } catch (e) {}
         try { if (typeof xhr.onload === 'function') xhr.onload(new ProgressEvent('load')); } catch (e) {}
         try { xhr.dispatchEvent(new Event('readystatechange')); } catch (e) {}
@@ -236,8 +246,58 @@
       }, 0);
       return;
     }
-    return _origSend.apply(this, arguments);
+    return origSendFn.apply(instance, [body]);
+  }
+
+  // ── Strategy 1: prototype override (standard usage) ──────────────────
+  _origXHRCtor.prototype.open = function (method, url) {
+    return _xhrOpen(this, method, url, _origOpen, arguments);
   };
+  _origXHRCtor.prototype.send = function (body) {
+    return _xhrSend(this, body, _origSend);
+  };
+
+  // ── Strategy 2: constructor proxy (catches SDKs with captured refs) ──
+  // When a third-party SDK does:
+  //   var OrigXHR = XMLHttpRequest;  (before our proto patch, or via closure)
+  //   var xhr = new OrigXHR();
+  //   xhr.send(body);  ← calls instance method resolved from OrigXHR.prototype
+  // The proto patch above covers this IF OrigXHR === _origXHRCtor.
+  //
+  // But if the SDK captured `var origSend = XHR.prototype.send` BEFORE our
+  // patch and calls origSend.apply(xhr, [body]) directly (bypassing prototype
+  // lookup), we must also wrap each instance's own send/open at creation time.
+  try {
+    function PatchedXHR() {
+      var inst = new _origXHRCtor();
+
+      // Wrap instance-level open so URL is captured even when called via
+      // a pre-captured prototype reference held in a third-party SDK closure.
+      var _instProtoOpen = _origXHRCtor.prototype.open;
+      var _instProtoSend = _origXHRCtor.prototype.send;
+
+      Object.defineProperty(inst, 'open', {
+        configurable: true, writable: true,
+        value: function (method, url) {
+          return _xhrOpen(inst, method, url, _instProtoOpen, arguments);
+        }
+      });
+      Object.defineProperty(inst, 'send', {
+        configurable: true, writable: true,
+        value: function (body) {
+          return _xhrSend(inst, body, _instProtoSend);
+        }
+      });
+
+      return inst;  // returning object from constructor replaces `this`
+    }
+    PatchedXHR.prototype = _origXHRCtor.prototype;
+    Object.setPrototypeOf(PatchedXHR, _origXHRCtor);
+    window.XMLHttpRequest = PatchedXHR;
+  } catch (e) {
+    // If constructor proxy fails, prototype override above still works
+    console.warn('[URL Interceptor] XHR constructor proxy failed:', e.message);
+  }
 
   console.log('[URL Interceptor] ✅ Initialized with', getRules().length, 'rule(s).',
     getRules().map(function(r){ return r.pattern; }));
