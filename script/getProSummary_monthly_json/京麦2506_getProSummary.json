@@ -1,0 +1,63 @@
+{
+    "message": "success",
+    "content": {
+        "summary": {
+            "CollectGoodsNum": {
+                "Value": 732,
+                "PreValue": 538.86925795053,
+                "Rate": 0.35840000000000005
+            },
+            "UV": {
+                "Value": 101468,
+                "PreValue": 74696.70200235571,
+                "Rate": 0.35840000000000005
+            },
+            "CartGoodsNum": {
+                "Value": 6712,
+                "PreValue": 4941.1071849234395,
+                "Rate": 0.35840000000000005
+            },
+            "CartProNum": {
+                "Value": 10029,
+                "PreValue": 7382.950530035336,
+                "Rate": 0.35840000000000005
+            },
+            "ToCartUser": {
+                "Value": 8452,
+                "PreValue": 6222.025912838633,
+                "Rate": 0.35840000000000005
+            },
+            "DealAmt": {
+                "Value": 2491267,
+                "PreValue": 1989988.8169981628,
+                "Rate": 0.2519
+            },
+            "PV": {
+                "Value": 332815,
+                "PreValue": 271974.34011604154,
+                "Rate": 0.2237
+            },
+            "DealProNum": {
+                "Value": 8897,
+                "PreValue": 7755.404463040446,
+                "Rate": 0.1472
+            },
+            "DealGoodsNum": {
+                "Value": 7600,
+                "PreValue": 6624.825662482566,
+                "Rate": 0.1472
+            },
+            "VisitedGoodsNum": {
+                "Value": 8143,
+                "PreValue": 5994.552414605418,
+                "Rate": 0.35840000000000005
+            },
+            "CollectNum": {
+                "Value": 1029,
+                "PreValue": 757.5088339222615,
+                "Rate": 0.35840000000000005
+            }
+        }
+    },
+    "status": 0
+}
