@@ -44,6 +44,15 @@ function renderRules() {
           return `<span class="badge badge-body" title="Body conditions:\n${escHtml(lines.join('\n'))}">${escHtml(label)}</span>`;
         })()
       : '';
+    const cookieBadge = rule.cookiePattern
+      ? (function() {
+          var lines = rule.cookiePattern.split('\n').filter(function(l){ return l.trim(); });
+          var label = lines.length > 1
+            ? 'cookie: ' + lines.length + ' conditions'
+            : 'cookie: ' + (lines[0] || '').substring(0, 22) + (lines[0] && lines[0].length > 22 ? '\u2026' : '');
+          return `<span class="badge badge-body" title="Cookie conditions:\n${escHtml(lines.join('\n'))}">${escHtml(label)}</span>`;
+        })()
+      : '';
     const fnBadge = rule.responseType === 'function'
       ? '<span class="badge badge-fn" title="Dynamic JS function response">&#9889;&nbsp;fn</span>'
       : '';
@@ -57,6 +66,7 @@ function renderRules() {
             <span class="badge">${escHtml(ct)}</span>
             ${fnBadge}
             ${bodyBadge}
+            ${cookieBadge}
           </div>
         </div>
         <div class="rule-actions">
@@ -225,6 +235,7 @@ function openModal(index) {
   document.getElementById('aliasInput').value        = rule ? (rule.alias || '') : '';
   document.getElementById('patternInput').value      = rule ? rule.pattern     : '';
   document.getElementById('bodyPatternInput').value  = rule ? (rule.bodyPattern || '') : '';
+  document.getElementById('cookiePatternInput').value = rule ? (rule.cookiePattern || '') : '';
   document.getElementById('statusInput').value       = rule ? rule.status      : 200;
   document.getElementById('contentTypeSelect').value = rule ? rule.contentType : 'application/json';
   document.getElementById('responseInput').value     = rule ? rule.response    : '';
@@ -260,6 +271,7 @@ function saveRule() {
     alias:        document.getElementById('aliasInput').value.trim(),
     pattern:      pattern,
     bodyPattern:  document.getElementById('bodyPatternInput').value.trim() || '',
+    cookiePattern: document.getElementById('cookiePatternInput').value.trim() || '',
     status:       parseInt(document.getElementById('statusInput').value, 10) || 200,
     contentType:  document.getElementById('contentTypeSelect').value,
     responseType: (document.querySelector('.mode-btn.active') || {}).dataset?.mode || 'static',

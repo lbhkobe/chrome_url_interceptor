@@ -1,0 +1,41 @@
+{
+    "header": {
+        "code": 0,
+        "desc": "success"
+    },
+    "body": {
+        "data": [
+            {
+                "fo_jdr_sch_industry_deal_rate##compareValue": 0.08849872801865943,
+                "jdr_sch_traffic_brow_sku__page_qtty_traffic_plat_item_di_sz_bsg##compareValue": 519841.3350871424,
+                "jdr_sch_trade_deal_ord_ord_qtty_sz_trade_deal_snapshot##compare": 0.19732791931364202,
+                "jdr_sch_trade_deal_ord_sku_qtty_sz_trade_deal_snapshot": 20512,
+                "jdr_sch_traffic_brow_sku__page_cnt_traffic_plat_item_di_sz_bsg": 179641,
+                "jdr_sch_traffic_brow_sku__page_cnt_traffic_plat_item_di_sz_bsg##compare": 0.2839000000000001,
+                "fo_jdr_sch_industry_deal_rate##compare": 0,
+                "fo_jdr_sch_trade_deal_ord_amt_user_sz_trade_deal_snapshot": 366.0049691785,
+                "fo_jdr_sch_trade_deal_ord_amt_user_sz_trade_deal_snapshot##compareValue": 377.5924306374,
+                "jdr_sch_traffic_brow_sku__page_qtty_traffic_plat_item_di_sz_bsg##compare": 0.21639999999999993,
+                "jdr_sch_traffic_brow_sku__page_qtty_traffic_plat_item_di_sz_bsg": 632335,
+                "jdr_sch_user_deal_ord_user_cnt_sz_user_deal_snapshot": 15898,
+                "jdr_sch_trade_deal_ord_ord_qtty_sz_trade_deal_snapshot": 18282,
+                "jdr_sch_trade_deal_ord_ord_amt_sz_trade_deal_snapshot##compare": 0.24450000000000002,
+                "jdr_sch_user_deal_ord_user_cnt_sz_user_deal_snapshot##compare": 0.28390000000000004,
+                "jdr_sch_traffic_brow_sku__page_cnt_traffic_plat_item_di_sz_bsg##compareValue": 139918.2179297453,
+                "jdr_sch_trade_deal_ord_sku_qtty_sz_trade_deal_snapshot##compare": 0.19730000000000006,
+                "fo_jdr_sch_trade_deal_ord_amt_user_sz_trade_deal_snapshot##compare": -0.03068774826699894,
+                "jdr_sch_trade_deal_ord_ord_amt_sz_trade_deal_snapshot": 5818747,
+                "jdr_sch_trade_deal_ord_ord_amt_sz_trade_deal_snapshot##compareValue": 4675570.1084773,
+                "jdr_sch_trade_deal_ord_sku_qtty_sz_trade_deal_snapshot##compareValue": 17131.880063476154,
+                "jdr_sch_trade_deal_ord_ord_qtty_sz_trade_deal_snapshot##compareValue": 15269,
+                "fo_jdr_sch_industry_deal_rate": 0.08849872801865943,
+                "jdr_sch_user_deal_ord_user_cnt_sz_user_deal_snapshot##compareValue": 12382.584313420048
+            }
+        ],
+        "size": 1,
+        "cache": true,
+        "traceId": "5111519.73483.17836030198659818",
+        "uuid": "b46e470c-d656-4785-86de-fefcf521978b"
+    },
+    "errors": null
+}

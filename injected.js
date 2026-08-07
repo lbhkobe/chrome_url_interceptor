@@ -105,6 +105,61 @@
     return rule.response || '';
   }
 
+  /**
+   * Read document.cookie safely. HttpOnly cookies are NOT visible here — the
+   * pattern must reference a cookie the page can read (JD's `pin` on ppzh.jd.com
+   * is script-readable, for example).
+   */
+  function getCookieStr() {
+    try { return document.cookie || ''; } catch (e) { return ''; }
+  }
+
+  /**
+   * AND-substring match: every non-empty line of `pattern` must appear in `hay`.
+   * Returns true when pattern is empty (i.e. no constraint).
+   */
+  function allLinesMatch(pattern, hay) {
+    if (!pattern) return true;
+    var lines = pattern.split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line) continue;
+      if (!hay || hay.indexOf(line) === -1) return false;
+    }
+    return true;
+  }
+
+  /**
+   * AND-substring match for cookie constraints.
+   *
+   * Cookies containing non-ASCII characters are stored URL-encoded in
+   * `document.cookie` (e.g. pin=%E9%9D%92%E5%B2%9B...). To let the user
+   * enter either the encoded OR decoded form, we test each pattern line
+   * against BOTH the raw cookie string and its decoded version, and we
+   * also try decoding the pattern line itself in case the user pasted
+   * an encoded value while the cookie happens to be decoded.
+   */
+  function _safeDecode(s) {
+    try { return decodeURIComponent(s); } catch (e) { return s; }
+  }
+  function allCookieLinesMatch(pattern, rawCookie) {
+    if (!pattern) return true;
+    var decodedCookie = _safeDecode(rawCookie || '');
+    var lines = pattern.split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line) continue;
+      var decodedLine = _safeDecode(line);
+      var hit =
+        (rawCookie     && rawCookie.indexOf(line)             !== -1) ||
+        (decodedCookie && decodedCookie.indexOf(line)         !== -1) ||
+        (rawCookie     && rawCookie.indexOf(decodedLine)      !== -1) ||
+        (decodedCookie && decodedCookie.indexOf(decodedLine)  !== -1);
+      if (!hit) return false;
+    }
+    return true;
+  }
+
   function findRule(url, bodyStr) {
     var rules = getRules();
     // Debug: log every URL from the target host to see exactly what paths are checked
@@ -116,6 +171,7 @@
       console.log('[URL Interceptor] 🔎 ppzh URL seen | rules available:', rules.length,
         '| url:', url.substring(0, 200));
     }
+    var cookieStr = null;  // lazy — only read when needed
     for (var i = 0; i < rules.length; i++) {
       var rule = rules[i];
 
@@ -125,14 +181,16 @@
       // Step 2: if bodyPattern is set, ALL non-empty lines must appear in the body
       if (rule.bodyPattern && rule.bodyPattern.length > 0) {
         if (!bodyStr) continue;  // body required but not present
-        var lines = rule.bodyPattern.split('\n');
-        var allMatch = true;
-        for (var j = 0; j < lines.length; j++) {
-          var line = lines[j].trim();
-          if (!line) continue;  // skip empty lines
-          if (bodyStr.indexOf(line) === -1) { allMatch = false; break; }
-        }
-        if (!allMatch) continue;
+        if (!allLinesMatch(rule.bodyPattern, bodyStr)) continue;
+      }
+
+      // Step 3: if cookiePattern is set, ALL non-empty lines must appear in document.cookie
+      // e.g. `pin=jd_xxxx` restricts the rule to a specific logged-in account.
+      // Matching is done against both the raw (URL-encoded) and decoded forms
+      // of document.cookie, so the user can enter Chinese values directly.
+      if (rule.cookiePattern && rule.cookiePattern.length > 0) {
+        if (cookieStr === null) cookieStr = getCookieStr();
+        if (!allCookieLinesMatch(rule.cookiePattern, cookieStr)) continue;
       }
 
       return rule;

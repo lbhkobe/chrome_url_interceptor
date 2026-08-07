@@ -73,6 +73,9 @@ async function syncDNRRules() {
       for (const rule of _cachedRules) {
         // Skip body-discriminated rules — DNR can't match request bodies.
         if (rule.bodyPattern && rule.bodyPattern.trim()) continue;
+        // Skip cookie-discriminated rules — DNR can't substring-match cookie
+        // values, so let the JS interceptor handle them (it reads document.cookie).
+        if (rule.cookiePattern && rule.cookiePattern.trim()) continue;
         const cond = _dnrBuildCondition(rule.pattern);
         if (!cond) continue;
         cond.resourceTypes = ['xmlhttprequest'];

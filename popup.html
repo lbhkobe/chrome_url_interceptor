@@ -74,6 +74,18 @@
         <small>Each non-empty line must appear as a substring in the POST body (AND logic).</small>
       </div>
 
+      <div class="form-group">
+        <label for="cookiePatternInput">
+          Cookie Contains
+          <span class="optional-tag">optional · one condition per line · ALL must match</span>
+        </label>
+        <textarea id="cookiePatternInput" rows="2" spellcheck="false"
+          placeholder='Each line is an AND condition against document.cookie, e.g.:
+pin=jd_1a2b3c4d
+pin=青岛蓝色海洋海参'></textarea>
+        <small>Each non-empty line must appear as a substring in <code>document.cookie</code> (AND logic). Chinese values may be entered directly or as their <code>%XX</code> URL-encoded form — both are matched. HttpOnly cookies are not visible.</small>
+      </div>
+
       <div class="form-row">
         <div class="form-group">
           <label for="statusInput">Status Code</label>
