@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>拦截规则生成器 · Interceptor Rule Generator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", "Microsoft YaHei", sans-serif; background: #f2f4f8; color: #222; padding: 20px; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .sub { color: #667; font-size: 12px; margin-bottom: 16px; }
+  .wrap { max-width: 1200px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .card h2 { font-size: 15px; margin-bottom: 10px; color: #1a3c8b; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  label { font-size: 12px; color: #445; display: block; margin-bottom: 3px; }
+  input, select, textarea { border: 1px solid #c6cede; border-radius: 6px; padding: 6px 8px; font-size: 13px; font-family: inherit; }
+  input[type=number] { width: 110px; }
+  input[type=month] { width: 150px; }
+  textarea { width: 100%; font-family: Consolas, monospace; font-size: 12px; }
+  button { background: #2456c8; color: #fff; border: 0; border-radius: 6px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  button:hover { background: #1a43a0; }
+  button.sec { background: #6b7688; }
+  button.danger { background: #c0392b; padding: 3px 8px; font-size: 11px; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .tab { padding: 7px 14px; border-radius: 20px; background: #e3e8f2; cursor: pointer; font-size: 13px; border: 1px solid transparent; }
+  .tab.on { background: #2456c8; color: #fff; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .hint { font-size: 11px; color: #889; margin-top: 6px; }
+  .basket-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-bottom: 1px dashed #dde; font-size: 12px; }
+  .basket-item code { color: #1a3c8b; }
+  pre { background: #101418; color: #cfe3ff; border-radius: 8px; padding: 10px; font-size: 11px; max-height: 320px; overflow: auto; }
+  .muted { color: #99a; font-size: 12px; }
+  fieldset { border: 1px solid #dde3ee; border-radius: 8px; padding: 10px; margin-top: 10px; }
+  legend { font-size: 12px; color: #556; padding: 0 6px; }
+  .ok { color: #1e8e3e; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>拦截规则生成器</h1>
+  <div class="sub">京麦新版 / 京麦旧版 / 猫超 / 生意参谋 / 微信小店 / 税务szc / 自定义 —— 页面配置生成 txcs-interceptor-rules</div>
+
+  <div class="card">
+    <h2>① 基础规则文件（可选，用于追加导出 & 自动取对比基期）</h2>
+    <div class="row">
+      <input type="file" id="baseFile" accept=".json">
+      <span id="baseInfo" class="muted">未加载</span>
+    </div>
+    <div class="hint">加载后：京麦新/旧版可自动读取上期/去年同期值作为 ##compareValue；模板克隆类可选择已有规则作为模板；导出时自动追加生成规则并以新文件名下载。</div>
+  </div>
+
+  <div class="card">
+    <h2>② 选择平台分类并配置</h2>
+    <div class="tabs" id="tabs"></div>
+    <div id="panel"></div>
+  </div>
+
+  <div class="card">
+    <h2>③ 生成篮 <span id="basketCount" class="muted"></span></h2>
+    <div id="basket"><span class="muted">暂无生成的规则</span></div>
+    <div class="row" style="margin-top:12px">
+      <label style="margin:0">导出文件名</label>
+      <input type="text" id="outName" style="width:340px" value="">
+      <button id="btnExportAll">导出 基础+生成（新文件）</button>
+      <button id="btnExportBasket" class="sec">仅导出生成规则</button>
+      <button id="btnCopy" class="sec">复制JSON</button>
+    </div>
+    <div class="hint" id="exportMsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>④ 预览</h2>
+    <pre id="preview">（生成后在此预览规则 JSON）</pre>
+  </div>
+</div>
+<script src="rule-generator.js"></script>
+</body>
+</html>

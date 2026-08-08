@@ -488,3 +488,78 @@ header {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
+
+/* ======================== Grouped rule list ======================== */
+.toolbar {
+  padding: 8px 12px 0;
+}
+.toolbar input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 12px;
+  outline: none;
+  box-sizing: border-box;
+}
+.toolbar input:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37 99 235 / 0.15); }
+.rule-count-hint {
+  padding: 4px 12px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+.rule-group { margin-bottom: 6px; }
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  font-size: 12px;
+  color: #334155;
+}
+.group-header:hover { background: #e2e8f0; }
+.group-arrow { font-size: 9px; color: #64748b; width: 12px; }
+.group-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.group-count {
+  background: #e2e8f0;
+  border-radius: 10px;
+  padding: 0 8px;
+  font-size: 11px;
+  color: #475569;
+  min-width: 18px;
+  text-align: center;
+}
+.group-tools { display: flex; gap: 4px; }
+.group-btn {
+  font-size: 10px;
+  padding: 2px 7px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  color: #475569;
+  line-height: 1.4;
+}
+.group-btn:hover { background: #f8fafc; border-color: #94a3b8; }
+.group-body { padding-top: 4px; }
+.subgroup { margin: 0 0 2px 10px; }
+.subgroup-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  font-size: 11px;
+  color: #475569;
+  background: #f8fafc;
+}
+.subgroup-header:hover { background: #f1f5f9; }
+.subgroup-body { padding: 2px 0 4px 8px; }

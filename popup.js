@@ -8,9 +8,10 @@ let editingIndex = -1;
 // ======================== Init ========================
 
 document.addEventListener('DOMContentLoaded', () => {
-  chrome.storage.local.get(['rules', 'enabled'], (result) => {
+  chrome.storage.local.get(['rules', 'enabled', 'collapsedGroups'], (result) => {
     rules   = result.rules   || [];
     enabled = result.enabled !== false;
+    collapsedGroups = result.collapsedGroups || {};
     document.getElementById('enableToggle').checked = enabled;
     renderRules();
     bindEvents();
@@ -18,6 +19,109 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ======================== Render ========================
+
+let collapsedGroups = {};   // 折叠状态：'p:平台' / 'i:平台#接口' → true
+
+/* ── 平台 / 接口分类（与 HTML 工具一致） ── */
+function classifyPlatform(pattern) {
+  const p = pattern || '';
+  if (p.indexOf('lowcode/tradeSummary') !== -1) return '京东·京麦新版';
+  if (p.indexOf('jd.com/brand') !== -1 || p.indexOf('ppzh.jd.com') !== -1) return '京东·京麦旧版';
+  if (p.indexOf('sycm.taobao.com') !== -1) return '淘宝·生意参谋';
+  if (p.indexOf('ascp-dc.tmall.com') !== -1) return '天猫超市';
+  if (p.indexOf('store.weixin.qq.com') !== -1) return '微信小店';
+  if (p.indexOf('DescribeSbmxxqcx') !== -1 || p.indexOf('DescribeSbmxcx2') !== -1 || p.indexOf('szc/szzh/sjswszzh') !== -1) return '其他·电子税务局';
+  return '自定义';
+}
+const PLATFORM_ORDER = ['京东·京麦新版','京东·京麦旧版','淘宝·生意参谋','天猫超市','微信小店','其他·电子税务局','自定义'];
+
+function ifaceName(pattern) {
+  const m = (pattern || '').match(/([A-Za-z0-9_]+)(?:\.ajax|\/|$)/);
+  const known = ['getSummary','getTrend','getProSummary','getProTrend','getVenderDealSummayData',
+    'DescribeSbmxxqcx','DescribeSbmxcx2','olap','liner','query','overview','trend'];
+  if (m && known.indexOf(m[1]) !== -1) return m[1];
+  const m2 = (pattern || '').match(/(?:v\d+\/)?([a-z0-9_\-]+)(?:\.json|\.ajax|\?|$)/i);
+  return m2 ? m2[1] : ((pattern || '').slice(0, 24) || '其他');
+}
+
+function matchQuery(rule, q) {
+  if (!q) return true;
+  return (rule.alias || '').toLowerCase().indexOf(q) !== -1 ||
+         (rule.pattern || '').toLowerCase().indexOf(q) !== -1 ||
+         (rule.bodyPattern || '').toLowerCase().indexOf(q) !== -1 ||
+         (rule.cookiePattern || '').toLowerCase().indexOf(q) !== -1;
+}
+
+/* 两级分组：平台 → 接口 → 规则（idx 始终是 rules 全量数组索引，过滤不改变语义） */
+function buildGroups(rules, query) {
+  const byPlat = {};
+  for (let i = 0; i < rules.length; i++) {
+    const r = rules[i];
+    if (!matchQuery(r, query)) continue;
+    const plat = classifyPlatform(r.pattern);
+    const iface = ifaceName(r.pattern);
+    if (!byPlat[plat]) byPlat[plat] = {};
+    (byPlat[plat][iface] = byPlat[plat][iface] || []).push({ rule: r, idx: i });
+  }
+  const groups = [];
+  for (const plat of PLATFORM_ORDER) {
+    if (!byPlat[plat]) continue;
+    const ifaces = Object.keys(byPlat[plat]).sort((a, b) => byPlat[plat][b].length - byPlat[plat][a].length);
+    const total = ifaces.reduce((n, k) => n + byPlat[plat][k].length, 0);
+    groups.push({ platform: plat, total, ifaces: ifaces.map(k => ({ iface: k, items: byPlat[plat][k] })) });
+  }
+  return groups;
+}
+
+function renderRuleItem(rule, i) {
+  const st = rule.status || 200;
+  const badgeClass = st >= 500 ? 's5' : st >= 400 ? 's4' : st >= 200 ? 's2' : '';
+  const ct = (rule.contentType || 'application/json').split('/').pop();
+  const bodyBadge = rule.bodyPattern
+    ? (function() {
+        var lines = rule.bodyPattern.split('\n').filter(function(l){ return l.trim(); });
+        var label = lines.length > 1
+          ? 'body: ' + lines.length + ' conditions'
+          : 'body: ' + (lines[0] || '').substring(0, 22) + (lines[0] && lines[0].length > 22 ? '\u2026' : '');
+        return `<span class="badge badge-body" title="Body conditions:\n${escHtml(lines.join('\n'))}">${escHtml(label)}</span>`;
+      })()
+    : '';
+  const cookieBadge = rule.cookiePattern
+    ? (function() {
+        var lines = rule.cookiePattern.split('\n').filter(function(l){ return l.trim(); });
+        var label = lines.length > 1
+          ? 'cookie: ' + lines.length + ' conditions'
+          : 'cookie: ' + (lines[0] || '').substring(0, 22) + (lines[0] && lines[0].length > 22 ? '\u2026' : '');
+        return `<span class="badge badge-body" title="Cookie conditions:\n${escHtml(lines.join('\n'))}">${escHtml(label)}</span>`;
+      })()
+    : '';
+  const fnBadge = rule.responseType === 'function'
+    ? '<span class="badge badge-fn" title="Dynamic JS function response">&#9889;&nbsp;fn</span>'
+    : '';
+  return `
+    <div class="rule-item ${rule.enabled === false ? 'disabled' : ''}">
+      <div class="rule-info">
+        ${rule.alias ? `<div class="rule-alias">${escHtml(rule.alias)}</div>` : ''}
+        <div class="rule-pattern ${rule.alias ? 'muted' : ''}" title="${escHtml(rule.pattern)}">${escHtml(rule.pattern)}</div>
+        <div class="rule-meta">
+          <span class="badge ${badgeClass}">${st}</span>
+          <span class="badge">${escHtml(ct)}</span>
+          ${fnBadge}
+          ${bodyBadge}
+          ${cookieBadge}
+        </div>
+      </div>
+      <div class="rule-actions">
+        <label class="mini-toggle" title="${rule.enabled !== false ? 'Disable' : 'Enable'} this rule">
+          <input type="checkbox" data-action="toggle" data-index="${i}" ${rule.enabled !== false ? 'checked' : ''}>
+          <span class="mini-slider"></span>
+        </label>
+        <button class="icon-btn" data-action="edit" data-index="${i}" title="Edit">✏️</button>
+        <button class="icon-btn" data-action="duplicate" data-index="${i}" title="Duplicate">📄</button>
+        <button class="icon-btn delete" data-action="delete" data-index="${i}" title="Delete">🗑️</button>
+      </div>
+    </div>`;
+}
 
 function renderRules() {
   const list = document.getElementById('ruleList');
@@ -31,55 +135,62 @@ function renderRules() {
     return;
   }
 
-  list.innerHTML = rules.map((rule, i) => {
-    const st = rule.status || 200;
-    const badgeClass = st >= 500 ? 's5' : st >= 400 ? 's4' : st >= 200 ? 's2' : '';
-    const ct = (rule.contentType || 'application/json').split('/').pop();
-    const bodyBadge = rule.bodyPattern
-      ? (function() {
-          var lines = rule.bodyPattern.split('\n').filter(function(l){ return l.trim(); });
-          var label = lines.length > 1
-            ? 'body: ' + lines.length + ' conditions'
-            : 'body: ' + (lines[0] || '').substring(0, 22) + (lines[0] && lines[0].length > 22 ? '\u2026' : '');
-          return `<span class="badge badge-body" title="Body conditions:\n${escHtml(lines.join('\n'))}">${escHtml(label)}</span>`;
-        })()
-      : '';
-    const cookieBadge = rule.cookiePattern
-      ? (function() {
-          var lines = rule.cookiePattern.split('\n').filter(function(l){ return l.trim(); });
-          var label = lines.length > 1
-            ? 'cookie: ' + lines.length + ' conditions'
-            : 'cookie: ' + (lines[0] || '').substring(0, 22) + (lines[0] && lines[0].length > 22 ? '\u2026' : '');
-          return `<span class="badge badge-body" title="Cookie conditions:\n${escHtml(lines.join('\n'))}">${escHtml(label)}</span>`;
-        })()
-      : '';
-    const fnBadge = rule.responseType === 'function'
-      ? '<span class="badge badge-fn" title="Dynamic JS function response">&#9889;&nbsp;fn</span>'
-      : '';
-    return `
-      <div class="rule-item ${rule.enabled === false ? 'disabled' : ''}">
-        <div class="rule-info">
-          ${rule.alias ? `<div class="rule-alias">${escHtml(rule.alias)}</div>` : ''}
-          <div class="rule-pattern ${rule.alias ? 'muted' : ''}" title="${escHtml(rule.pattern)}">${escHtml(rule.pattern)}</div>
-          <div class="rule-meta">
-            <span class="badge ${badgeClass}">${st}</span>
-            <span class="badge">${escHtml(ct)}</span>
-            ${fnBadge}
-            ${bodyBadge}
-            ${cookieBadge}
+  const searchEl = document.getElementById('searchInput');
+  const q = (searchEl && searchEl.value || '').trim().toLowerCase();
+  const groups = buildGroups(rules, q);
+
+  if (groups.length === 0) {
+    list.innerHTML = `<div class="empty-state"><span>没有匹配的规则</span></div>`;
+    return;
+  }
+
+  const matchedTotal = groups.reduce((n, g) => n + g.total, 0);
+  list.innerHTML =
+    `<div class="rule-count-hint">共 ${matchedTotal} 条${q ? '（已过滤）' : ''}</div>` +
+    groups.map(g => {
+      const pKey = 'p:' + g.platform;
+      const pCollapsed = collapsedGroups[pKey] === true;
+      const pBody = pCollapsed ? '' : g.ifaces.map(ig => {
+        const iKey = 'i:' + g.platform + '#' + ig.iface;
+        const iCollapsed = collapsedGroups[iKey] === true;
+        const iBody = iCollapsed ? '' : ig.items.map(it => renderRuleItem(it.rule, it.idx)).join('');
+        return `
+          <div class="subgroup">
+            <div class="subgroup-header" data-action="toggle-group" data-key="${escHtml(iKey)}">
+              <span class="group-arrow">${iCollapsed ? '▶' : '▼'}</span>
+              <span class="group-name">${escHtml(ig.iface)}</span>
+              <span class="group-count">${ig.items.length}</span>
+            </div>
+            ${iBody ? `<div class="subgroup-body">${iBody}</div>` : ''}
+          </div>`;
+      }).join('');
+      return `
+        <div class="rule-group">
+          <div class="group-header" data-action="toggle-group" data-key="${escHtml(pKey)}">
+            <span class="group-arrow">${pCollapsed ? '▶' : '▼'}</span>
+            <span class="group-name">${escHtml(g.platform)}</span>
+            <span class="group-count">${g.total}</span>
+            <span class="group-tools" data-stop="1">
+              <button class="group-btn" data-action="group-toggle-all" data-platform="${escHtml(g.platform)}" data-enable="1" title="启用该平台全部规则">全开</button>
+              <button class="group-btn" data-action="group-toggle-all" data-platform="${escHtml(g.platform)}" data-enable="0" title="停用该平台全部规则">全关</button>
+            </span>
           </div>
-        </div>
-        <div class="rule-actions">
-          <label class="mini-toggle" title="${rule.enabled !== false ? 'Disable' : 'Enable'} this rule">
-            <input type="checkbox" data-action="toggle" data-index="${i}" ${rule.enabled !== false ? 'checked' : ''}>
-            <span class="mini-slider"></span>
-          </label>
-          <button class="icon-btn" data-action="edit" data-index="${i}" title="Edit">✏️</button>
-          <button class="icon-btn" data-action="duplicate" data-index="${i}" title="Duplicate">📄</button>
-          <button class="icon-btn delete" data-action="delete" data-index="${i}" title="Delete">🗑️</button>
-        </div>
-      </div>`;
-  }).join('');
+          ${pBody ? `<div class="group-body">${pBody}</div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+function toggleGroup(key) {
+  collapsedGroups[key] = !(collapsedGroups[key] === true);
+  chrome.storage.local.set({ collapsedGroups });
+  renderRules();
+}
+
+function groupToggleAll(platform, enable) {
+  rules.forEach(r => { if (classifyPlatform(r.pattern) === platform) r.enabled = enable; });
+  chrome.storage.local.set({ rules });
+  showToast((enable ? '已启用' : '已停用') + ' ' + platform + ' 全部规则');
+  renderRules();
 }
 
 // ======================== Events ========================
@@ -95,11 +206,17 @@ function bindEvents() {
   // Add rule
   document.getElementById('addRuleBtn').addEventListener('click', () => openModal(-1));
 
+  // Search
+  const searchEl = document.getElementById('searchInput');
+  if (searchEl) searchEl.addEventListener('input', () => renderRules());
+
   // Event delegation for edit / delete / toggle inside rule list (avoids CSP issues with inline handlers)
   document.getElementById('ruleList').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     const action = btn.dataset.action;
+    if (action === 'toggle-group')      { toggleGroup(btn.dataset.key); return; }
+    if (action === 'group-toggle-all')  { groupToggleAll(btn.dataset.platform, btn.dataset.enable === '1'); return; }
     const index  = parseInt(btn.dataset.index, 10);
     if (action === 'edit')      openModal(index);
     if (action === 'duplicate') duplicateRule(index);

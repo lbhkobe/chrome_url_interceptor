@@ -1,0 +1,1465 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TXCS 规则生成器</title>
+<style>
+:root{
+  --bg:#0f1420; --panel:#161d2e; --panel2:#1c2540; --border:#2a3550;
+  --text:#e6ebf5; --muted:#8b96ad; --accent:#4f8cff; --accent2:#2dd4bf;
+  --green:#34d399; --red:#f87171; --yellow:#fbbf24; --orange:#fb923c;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font:14px/1.5 "Microsoft YaHei",system-ui,sans-serif;min-height:100vh}
+button{font-family:inherit;cursor:pointer;border:none;border-radius:6px;background:var(--panel2);color:var(--text);padding:6px 14px;font-size:13px;transition:.15s}
+button:hover{filter:brightness(1.25)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:var(--accent)}
+button.green{background:#0e7a5f;color:#fff}
+button.danger{background:#7f1d1d;color:#fff}
+input,select,textarea{font-family:inherit;font-size:13px;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 10px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+header{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+header h1{font-size:17px;font-weight:700;margin-right:6px}
+header h1 span{color:var(--accent2)}
+#statBar{display:flex;gap:10px;align-items:center;padding:8px 18px;border-bottom:1px solid var(--border);font-size:12.5px;color:var(--muted);flex-wrap:wrap}
+#statBar b{color:var(--text)}
+.chip{background:var(--panel2);border:1px solid var(--border);border-radius:20px;padding:2px 10px;font-size:12px}
+.chip.blue{color:var(--accent)} .chip.green{color:var(--green)} .chip.yellow{color:var(--yellow)} .chip.red{color:var(--red)}
+.layout{display:flex;height:calc(100vh - 96px)}
+aside{width:300px;min-width:300px;border-right:1px solid var(--border);overflow-y:auto;padding:10px;background:#111828}
+aside h3{font-size:12px;color:var(--muted);margin:10px 4px 6px;letter-spacing:.5px}
+.platform{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;cursor:pointer;margin-bottom:2px;font-size:13.5px}
+.platform:hover{background:var(--panel)}
+.platform.active{background:var(--panel2);outline:1px solid var(--accent)}
+.platform .cnt{margin-left:auto;font-size:12px;color:var(--muted)}
+.tgroup{margin:4px 0 4px 8px;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:13px;border-left:2px solid var(--border)}
+.tgroup:hover{background:var(--panel)}
+.tgroup.active{background:var(--panel2);border-left-color:var(--accent)}
+.tgroup .iface{font-weight:600}
+.tgroup .meta{font-size:11.5px;color:var(--muted);margin-top:2px}
+.tgroup .gen{border:1px solid var(--accent);color:var(--accent);border-radius:5px;padding:2px 8px;font-size:11.5px;background:transparent;margin-top:5px}
+main{flex:1;display:flex;flex-direction:column;min-width:0}
+#genPanel{display:none;padding:14px 18px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#131b2e,#10151f)}
+#genPanel.show{display:block}
+#genPanel h2{font-size:15px;margin-bottom:10px}
+.gen-row{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.gen-box{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:12px 14px;min-width:260px}
+.gen-box h4{font-size:12.5px;color:var(--muted);margin-bottom:8px;font-weight:600}
+.month-chips{display:flex;flex-wrap:wrap;gap:6px}
+.month-chip{padding:4px 12px;border-radius:16px;background:var(--panel2);border:1px solid var(--border);cursor:pointer;font-size:12.5px;user-select:none}
+.month-chip:hover{border-color:var(--accent)}
+.month-chip.sel{background:var(--accent);border-color:var(--accent);color:#fff}
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.metric-item label{display:block;font-size:11.5px;color:var(--muted);margin-bottom:3px}
+.metric-item input{width:100%}
+#ruleArea{flex:1;overflow-y:auto;padding:12px 18px}
+.rule-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:var(--panel);font-size:13px}
+.rule-row.new{outline:1px solid var(--green)}
+.rule-row.disabled{opacity:.55}
+.rule-row .alias{font-weight:600;min-width:200px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rule-row .pat{color:var(--muted);flex:1;min-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+.rule-row .tag{font-size:11px;padding:2px 8px;border-radius:10px;background:var(--panel2);color:var(--muted);white-space:nowrap}
+.rule-row .tag.body{color:var(--yellow)} .rule-row .tag.fn{color:var(--accent2)}
+.rule-row .ops{display:flex;gap:4px}
+.rule-row .ops button{padding:3px 9px;font-size:12px;background:var(--panel2)}
+.empty{padding:60px 20px;text-align:center;color:var(--muted)}
+.empty .big{font-size:40px;margin-bottom:10px}
+#modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;align-items:center;justify-content:center}
+#modal.show{display:flex}
+.modal-box{background:var(--panel);border:1px solid var(--border);border-radius:12px;width:760px;max-width:94vw;max-height:90vh;overflow-y:auto;padding:18px 22px}
+.modal-box h2{font-size:15px;margin-bottom:14px}
+.fg{margin-bottom:10px}
+.fg label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.fg input,.fg select,.fg textarea{width:100%}
+.fg textarea{font-family:Consolas,monospace;font-size:12px;line-height:1.45}
+.fg-row{display:flex;gap:10px}
+.fg-row .fg{flex:1}
+.modal-ft{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1f2937;border:1px solid var(--accent);color:#fff;padding:9px 20px;border-radius:8px;font-size:13px;z-index:99;opacity:0;transition:.2s;pointer-events:none}
+.toast.show{opacity:1}
+.toggle{position:relative;width:34px;height:18px;flex-shrink:0;cursor:pointer}
+.toggle input{display:none}
+.toggle .slider{position:absolute;inset:0;background:var(--panel2);border:1px solid var(--border);border-radius:20px;transition:.15s}
+.toggle .slider:before{content:"";position:absolute;width:12px;height:12px;border-radius:50%;background:var(--muted);top:2px;left:3px;transition:.15s}
+.toggle input:checked + .slider{background:var(--accent)}
+.toggle input:checked + .slider:before{transform:translateX(15px);background:#fff}
+kbd{background:var(--panel2);border:1px solid var(--border);border-radius:4px;padding:0 5px;font-size:11px;color:var(--accent2)}
+.small{font-size:11.5px;color:var(--muted)}
+.tab-btn{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:4px 12px;font-size:12.5px}
+.tab-btn.active{background:var(--accent);border-color:var(--accent)}
+.fg-label{font-size:11.5px;color:var(--accent2);margin:8px 0 4px;font-weight:600}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:#2a3550;border-radius:5px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>TXCS <span>规则生成器</span></h1>
+  <label class="small" style="display:flex;align-items:center;gap:6px">店铺
+    <input id="storeName" placeholder="如：海盛和食品" style="width:130px" value="海盛和食品">
+  </label>
+  <label class="small" style="display:flex;align-items:center;gap:6px">导出文件名
+    <input id="fileName" style="width:260px" placeholder="txcs-interceptor-rules - 海盛和食品MMDD.json">
+  </label>
+  <div style="flex:1"></div>
+  <label style="display:inline-flex;align-items:center;gap:6px" class="small">
+    <input type="checkbox" id="onlyEnabled" checked> 仅导出启用
+  </label>
+  <button class="primary" id="importBtn">⬆ 导入规则文件</button>
+  <input type="file" id="importFile" accept=".json" style="display:none">
+  <button class="green" id="exportBtn">⬇ 导出规则文件</button>
+  <button class="danger" id="clearBtn" title="清空工作区（含本地缓存）">清空</button>
+</header>
+
+<div id="statBar"></div>
+
+<div class="layout">
+  <aside>
+    <h3>平台 / 接口分组</h3>
+    <div id="platformList"></div>
+    <h3>模板组（可按月份批量生成）</h3>
+    <div id="groupList"></div>
+  </aside>
+
+  <main>
+    <div id="genPanel">
+      <h2>批量生成新月份规则</h2>
+      <div class="gen-row">
+        <div class="gen-box">
+          <h4>① 目标月份（可多选）</h4>
+          <div class="month-chips" id="monthChips"></div>
+          <div style="margin-top:8px" class="small">
+            基底月份：<b id="baseMonthLabel">—</b> ｜
+            <button id="selAllBtn" style="padding:2px 10px;font-size:12px">全选未来12个月</button>
+          </div>
+        </div>
+        <div class="gen-box" id="typeBox" style="min-width:280px;max-width:340px"></div>
+        <div class="gen-box" id="metricBox" style="display:none">
+          <h4>③ 指标速填（可选，默认沿用基底数值）</h4>
+          <div class="metric-grid" id="metricGrid"></div>
+        </div>
+        <div class="gen-box" style="min-width:220px">
+          <h4>④ 生成</h4>
+          <p class="small" style="margin-bottom:8px">为每个选中的月份生成 1 条新规则：<br>alias / URL / bodyPattern / 响应中的日期全部联动到新月份，趋势数据按天平移。</p>
+          <div id="updateModeHint" class="small" style="margin-bottom:8px;color:var(--yellow);display:none">
+            ⚠ 当前基底是<b>每月数据表</b>：点击生成将直接<b>更新现有规则</b>
+            （在响应数组里插入新月份行），不会新增规则。
+          </div>
+          <button class="primary" id="genBtn" style="width:100%">⚡ 生成选中月份规则</button>
+          <div style="margin-top:8px" class="small">生成后可点击表格中<span style="color:var(--green)">绿色高亮</span>的新规则编辑数值。</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="ruleArea"></div>
+  </main>
+</div>
+
+<div id="modal">
+  <div class="modal-box" style="width:820px">
+    <h2 id="modalTitle">编辑规则</h2>
+    <div class="fg"><label>Alias（名称）</label><input id="f_alias"></div>
+    <div class="fg"><label>URL Pattern（子串 / 通配符* / 正则 /re/）</label><input id="f_pattern"></div>
+    <div class="fg"><label>Body 匹配条件（每行一个，全部命中才拦截）</label><textarea id="f_body" rows="3" spellcheck="false"></textarea></div>
+    <div class="fg"><label>Cookie 匹配条件（每行一个，可选）</label><textarea id="f_cookie" rows="2" spellcheck="false"></textarea></div>
+    <div class="fg-row">
+      <div class="fg"><label>Status</label><input id="f_status" type="number" value="200"></div>
+      <div class="fg"><label>Content-Type</label>
+        <select id="f_ct">
+          <option value="application/json">application/json</option>
+          <option value="text/plain">text/plain</option>
+          <option value="text/html">text/html</option>
+          <option value="application/xml">application/xml</option>
+        </select>
+      </div>
+      <div class="fg"><label>响应类型</label>
+        <select id="f_rt">
+          <option value="static">static（静态文本）</option>
+          <option value="function">function（JS 动态生成）</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg">
+      <label>Response Body</label>
+      <div style="display:flex;gap:6px;margin-bottom:6px">
+        <button type="button" id="tabFormBtn" class="tab-btn active">📝 表单编辑（推荐）</button>
+        <button type="button" id="tabJsonBtn" class="tab-btn">{} JSON 编辑</button>
+        <div style="flex:1"></div>
+        <button id="hideMonthBtn" style="padding:3px 10px;font-size:12px;background:#7c3aed" title="转为 function 响应，拦截返回时自动过滤当前月及以后的行（趋势表只显示完整月份），数据仍可表单编辑">🔒 隐藏当前月</button>
+        <button id="cmpBtn" style="padding:3px 10px;font-size:12px;background:#0e7a5f" title="按同接口上月规则自动计算环比(_tb)">🔄 计算环比</button>
+        <button id="metricBtn" style="padding:3px 10px;font-size:12px;background:#0e7a5f" title="京麦新版 8 指标速填">⚡ 指标速填</button>
+      </div>
+      <div id="formEditor" style="max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--panel)"></div>
+      <textarea id="f_response" rows="12" spellcheck="false" style="font-family:Consolas,monospace;display:none"></textarea>
+    </div>
+    <div class="modal-ft">
+      <button id="cancelBtn">取消</button>
+      <button class="primary" id="saveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script id="core">
+/* ============================================================
+ * TXCS 规则生成器 —— 核心逻辑（纯函数，无 DOM 依赖）
+ * ============================================================ */
+'use strict';
+
+/* ── 日期工具 ── */
+function pad2(n){ return String(n).padStart(2,'0'); }
+function lastDay(y,m){ return new Date(y,m,0).getDate(); }
+function prevMonth(y,m){ return m===1 ? {y:y-1,m:12} : {y:y,m:m-1}; }
+function fmtYM(y,m){ return y+'-'+pad2(m); }                       // 2026-09
+function fmtYYMM(y,m){ return String(y).slice(-2)+pad2(m); }       // 2609
+function fmtYMD(y,m,d){ return y+pad2(m)+pad2(d); }                // 20260930
+function fmtYMDdash(y,m,d){ return y+'-'+pad2(m)+'-'+pad2(d); }    // 2026-09-30
+function toMonth(yymm){ return { y: 2000+parseInt(yymm.slice(0,2),10), m: parseInt(yymm.slice(2),10) }; }
+
+/* 月份上下文：一次算好目标月份的全部日期 token（含环比上月） */
+function makeMonthCtx(y, m){
+  const p = prevMonth(y, m);
+  const ld = lastDay(y, m), pld = lastDay(p.y, p.m);
+  return {
+    y, m, p, ld, pld,
+    yymm:  fmtYYMM(y, m),
+    ym:    fmtYM(y, m),
+    mStart:  fmtYMD(y, m, 1),   mEnd:  fmtYMD(y, m, ld),
+    mStartD: fmtYMDdash(y, m, 1), mEndD: fmtYMDdash(y, m, ld),
+    prevYm:    fmtYM(p.y, p.m),
+    prevStart: fmtYMD(p.y, p.m, 1), prevEnd: fmtYMD(p.y, p.m, pld),
+    prevStartD: fmtYMDdash(p.y, p.m, 1), prevEndD: fmtYMDdash(p.y, p.m, pld),
+    cn: y+'年'+m+'月'
+  };
+}
+
+/* ── 平台分类 ── */
+function classifyPlatform(pattern){
+  const p = pattern || '';
+  if (p.indexOf('lowcode/tradeSummary') !== -1) return '京东·京麦新版';
+  if (p.indexOf('jd.com/brand') !== -1 || p.indexOf('ppzh.jd.com') !== -1) return '京东·京麦旧版';
+  if (p.indexOf('sycm.taobao.com') !== -1) return '淘宝·生意参谋';
+  if (p.indexOf('ascp-dc.tmall.com') !== -1) return '天猫超市';
+  if (p.indexOf('store.weixin.qq.com') !== -1) return '微信小店';
+  if (p.indexOf('szc/szzh/sjswszzh') !== -1) return '其他·电子税务局';
+  return '自定义';
+}
+const PLATFORM_ORDER = ['京东·京麦新版','京东·京麦旧版','淘宝·生意参谋','天猫超市','微信小店','其他·电子税务局','自定义'];
+
+/* 接口短名：从 pattern 提取可读的接口名 */
+function ifaceName(pattern){
+  const m = pattern.match(/([A-Za-z0-9_]+)(?:\.ajax|\/|$)/);
+  const known = ['getSummary','getTrend','getProSummary','getProTrend','getVenderDealSummayData',
+    'DescribeSbmxxqcx','DescribeSbmxcx2','olap','liner','query','overview','trend'];
+  if (m && known.indexOf(m[1]) !== -1) return m[1];
+  const m2 = pattern.match(/(?:v\d+\/)?([a-z0-9_\-]+)(?:\.json|\.ajax|\?|$)/i);
+  return m2 ? m2[1] : pattern.slice(0, 24);
+}
+
+/* ── 从规则提取基底月份 ── */
+function extractMonthOf(rule){
+  const s = (rule.alias||'') + '\n' + (rule.bodyPattern||'');
+  let m = s.match(/京麦(?:新版)?_?(\d{4})_/);
+  if (m) return toMonth(m[1]);
+  m = s.match(/微信小店(\d{4})/);
+  if (m) return toMonth(m[1]);
+  m = s.match(/(\d{2,4})年(\d{1,2})月/);
+  if (m){
+    const yy = parseInt(m[1],10);
+    return { y: yy < 100 ? 2000 + yy : yy, m: parseInt(m[2],10) };
+  }
+  m = s.match(/(?:hsh?[- ])?(\d{2})\.(\d{1,2})-(\d{2}|total)/);
+  if (m) return { y: 2000+parseInt(m[1],10), m: parseInt(m[2],10) };
+  m = s.match(/startDate["\\']?\s*[:=]\s*["\\'](\d{4})-(\d{2})/);
+  if (m) return { y: parseInt(m[1],10), m: parseInt(m[2],10) };
+  // 猫超类 bodyPattern："value":"YYYYMMDD" 多行时取日期最大（本月）的一行
+  const vals = s.match(/"value":"(\d{4})(\d{2})\d{2}"/g);
+  if (vals && vals.length){
+    let best = null;
+    for (const v of vals){
+      const mm = v.match(/"value":"(\d{4})(\d{2})(\d{2})"/);
+      const key = mm[1]+mm[2]+mm[3];
+      if (!best || key > best.key) best = { key, y:+mm[1], m:+mm[2] };
+    }
+    if (best) return { y: best.y, m: best.m };
+  }
+  return null;
+}
+
+/* ── 日期值替换（单个字符串值） ──
+ * ctx 为目标月份上下文；基底日期 (y0,m0,d0) 语义：
+ *   月初→目标月初，月末→目标月末，其他→同一天（超限取月末）
+ */
+function ctxDay(ctx, y0, m0, d0){
+  const baseLd = lastDay(y0, m0);
+  if (d0 >= baseLd) return ctx.ld;
+  if (d0 <= 1) return 1;
+  return Math.min(d0, ctx.ld);
+}
+var _RX_DATE = /(\d{4})-(\d{2})-(\d{2})(?!\d)|(\d{4})(\d{2})(\d{2})(?!\d)|(\d{4})-(\d{2})(?!\d)|(\d{4})年(\d{1,2})月|(\d{4})(\d{2})(?!\d)/g;
+function validYMD(y,m,d){ return y>=1900 && y<=2100 && m>=1 && m<=12 && d>=1 && d<=31; }
+function validYM(y,m){ return y>=1900 && y<=2100 && m>=1 && m<=12; }
+function replaceDateValue(val, ctx){
+  if (!val) return val;
+  return String(val).replace(_RX_DATE, function(mm, y1,m1,d1, y2,m2,d2, y3,m3, y4,mn4, y5,m5){
+    if (y1 && validYMD(+y1,+m1,+d1)){ return fmtYMDdash(ctx.y, ctx.m, ctxDay(ctx, +y1, +m1, +d1)); }
+    if (y2 && validYMD(+y2,+m2,+d2)){ return fmtYMD(ctx.y, ctx.m, ctxDay(ctx, +y2, +m2, +d2)); }
+    if (y3 && validYM(+y3,+m3)){ return fmtYM(ctx.y, ctx.m); }
+    if (y4 && validYM(+y4,+mn4)){ return ctx.y+'年'+ctx.m+'月'; }
+    if (y5 && validYM(+y5,+m5)){ return ctx.y+pad2(ctx.m); }
+    return mm;
+  });
+}
+
+/* ── bodyPattern 行级替换
+ * 语义判定：compare 键 → 环比上月；
+ * 普通键 → 若值中的年月早于基底月（如猫超 olap 的"value"行列表含上月末）→ 上月，否则 → 目标月
+ */
+function pickCtxByDate(val, baseMo, tgt){
+  if (!baseMo) return tgt;
+  const mm = String(val).match(/(\d{4})-(\d{2})|(\d{4})(\d{2})/);
+  if (!mm) return tgt;
+  const y = +(mm[1]||mm[3]), mo = +(mm[2]||mm[4]);
+  const baseKey = baseMo.y*100 + baseMo.m;
+  const valKey = y*100 + mo;
+  return valKey < baseKey ? makeMonthCtx(tgt.p.y, tgt.p.m) : tgt;
+}
+function replaceBodyPattern(bp, baseMo, tgt){
+  if (!bp) return '';
+  return String(bp).split('\n').map(function(line){
+    const m = line.match(/^(\s*"[^"]+":\s*)"([^"]*)"\s*$/);
+    if (!m) return line;
+    const ctx = /compare/i.test(m[1])
+      ? makeMonthCtx(tgt.p.y, tgt.p.m)
+      : pickCtxByDate(m[2], baseMo, tgt);
+    return m[1] + '"' + replaceDateValue(m[2], ctx) + '"';
+  }).join('\n');
+}
+
+/* ── URL pattern 替换 ── */
+function replacePatternUrl(pat, tgt){
+  if (!pat) return '';
+  return replaceDateValue(pat, tgt);
+}
+
+/* ── alias 替换 ── */
+function replaceAlias(alias, tgt){
+  if (!alias) return alias;
+  let out = alias;
+  out = out.replace(/(\d{2})\.(\d{1,2})-(\d{2}|total)/g, function(mm,yy,mo,seq){
+    return String(tgt.y).slice(-2)+'.'+tgt.m+'-'+seq;
+  });
+  out = out.replace(/(京麦(?:新版)?_?|微信小店)(\d{4})/g, function(mm,pre){ return pre + tgt.yymm; });
+  out = out.replace(/(\d{2,4})年(\d{1,2})月/g, function(mm, yy, mo){
+    return (yy.length === 4 ? String(tgt.y) : String(tgt.y).slice(-2)) + '年' + tgt.m + '月';
+  });
+  return out;
+}
+
+/* ── response 结构级替换（JSON 递归） ── */
+function isDateStr(s){ return /^(\d{4})-(\d{2})-(\d{2})$|^\d{8}$|^(\d{4})-(\d{2})$|^\d{6}$/.test(s); }
+function walkDates(node, tgt, key){
+  if (typeof node === 'string'){
+    const ctx = /compare/i.test(key||'') ? makeMonthCtx(tgt.p.y, tgt.p.m) : tgt;
+    return replaceDateValue(node, ctx);
+  }
+  if (Array.isArray(node)){
+    // trend 每日数组（categories 日期串 / data 数字）→ 按目标月天数对齐
+    const isCat = node.length > 15 && typeof node[0] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(node[0]);
+    const isNum = node.length > 15 && typeof node[0] === 'number';
+    if (isCat || isNum){
+      const out = [];
+      for (let i = 0; i < tgt.ld; i++){
+        if (i < node.length){
+          out.push(isCat ? fmtYMDdash(tgt.y, tgt.m, i+1) : node[i]);
+        } else {
+          out.push(isCat ? fmtYMDdash(tgt.y, tgt.m, i+1) : 0);
+        }
+      }
+      return out;
+    }
+    for (let i = 0; i < node.length; i++) node[i] = walkDates(node[i], tgt, key);
+    return node;
+  }
+  if (node && typeof node === 'object'){
+    for (const k of Object.keys(node)) node[k] = walkDates(node[k], tgt, k);
+    return node;
+  }
+  return node;
+}
+function shiftResponse(responseStr, tgt){
+  if (!responseStr) return responseStr;
+  try {
+    const obj = JSON.parse(responseStr);
+    walkDates(obj, tgt, '');
+    return JSON.stringify(obj, null, 2);
+  } catch (e) {
+    return replaceDateValue(responseStr, tgt); // 非 JSON（JS function / raw）字符串级替换
+  }
+}
+
+/* ── 生成单条规则 ── */
+function generateRule(baseRule, targetMonth){
+  const tgt = makeMonthCtx(targetMonth.y, targetMonth.m);
+  const baseMo = extractMonthOf(baseRule);
+  const out = {};
+  for (const k of Object.keys(baseRule)) out[k] = baseRule[k];
+  out.alias       = replaceAlias(baseRule.alias, tgt);
+  out.pattern     = replaceDateValue(baseRule.pattern, tgt);
+  out.bodyPattern = replaceBodyPattern(baseRule.bodyPattern, baseMo, tgt);
+  out.response    = clearPeriodOverPeriod(shiftResponse(baseRule.response, tgt));
+  out.enabled     = baseRule.enabled !== false;
+  return out;
+}
+
+/* ── 京麦新版 8 指标识别与速填 ── */
+const JD_METRICS = [
+  { key:'jdr_sch_traffic_brow_sku__page_qtty_traffic_plat_item_di_sz_bsg', label:'浏览量 PV' },
+  { key:'jdr_sch_traffic_brow_sku__page_cnt_traffic_plat_item_di_sz_bsg', label:'访客数 UV' },
+  { key:'jdr_sch_user_deal_ord_user_cnt_sz_user_deal_snapshot', label:'成交用户数' },
+  { key:'fo_jdr_sch_industry_deal_rate', label:'成交率 %' },
+  { key:'jdr_sch_trade_deal_ord_ord_qtty_sz_trade_deal_snapshot', label:'成交单量' },
+  { key:'jdr_sch_trade_deal_ord_sku_qtty_sz_trade_deal_snapshot', label:'成交商品数' },
+  { key:'jdr_sch_trade_deal_ord_ord_amt_sz_trade_deal_snapshot', label:'成交金额' },
+  { key:'fo_jdr_sch_trade_deal_ord_amt_user_sz_trade_deal_snapshot', label:'件单价' }
+];
+/* 检测响应是否含京麦指标结构，返回 {values:{key:num}, isTrend:bool} 或 null */
+function detectMetrics(responseStr){
+  if (!responseStr) return null;
+  try {
+    const obj = JSON.parse(responseStr);
+    const data0 = obj && obj.body && obj.body.data && obj.body.data[0];
+    if (!data0 || typeof data0 !== 'object') return null;
+    const values = {};
+    let hit = 0;
+    const isTrend = !!(data0.trend && data0.trend.series);
+    if (isTrend){
+      for (const mk of JD_METRICS){
+        const s = data0.trend.series.find(x => x.code === mk.key);
+        if (s){ values[mk.key] = s.data.reduce((a,b)=>a+b,0); hit++; }
+      }
+    } else {
+      for (const mk of JD_METRICS){
+        if (data0[mk.key] !== undefined){ values[mk.key] = data0[mk.key]; hit++; }
+      }
+    }
+    if (hit === 0) return null;
+    return { values, isTrend, oldValues: JSON.parse(JSON.stringify(values)) };
+  } catch (e) { return null; }
+}
+/* 应用指标值：getSummary 重算环比；getTrend 按比例缩放每日序列 */
+function applyMetrics(responseStr, values){
+  try {
+    const obj = JSON.parse(responseStr);
+    const d0 = obj.body.data[0];
+    if (d0 && d0.trend && d0.trend.series){
+      // trend：按 new/old 总量缩放各 series（每日分布形态保持基底）
+      const oldMap = {};
+      for (const mk of JD_METRICS){
+        const s = d0.trend.series.find(x => x.code === mk.key);
+        if (s){
+          const sum = s.data.reduce((a,b)=>a+b,0);
+          oldMap[mk.key] = sum;
+        }
+      }
+      for (const s of d0.trend.series){
+        const nv = values[s.code];
+        if (nv === undefined) continue;
+        const oldSum = oldMap[s.code];
+        if (!oldSum) continue;
+        const ratio = nv / oldSum;
+        s.data = s.data.map(v => Math.round(v * ratio * 100) / 100);
+      }
+    } else if (d0){
+      // summary：更新数值 + 重算 ##compare / ##compareValue
+      for (const mk of JD_METRICS){
+        const nv = values[mk.key];
+        if (nv === undefined) continue;
+        const ov = d0[mk.key];
+        d0[mk.key] = nv;
+        const cv = d0[mk.key + '##compareValue'];
+        if (cv !== undefined){
+          d0[mk.key + '##compareValue'] = cv; // 环比基数保持基底值
+          const cmp = d0[mk.key + '##compare'];
+          if (cmp !== undefined && ov !== undefined && ov !== 0 && cv !== undefined && cv !== 0){
+            d0[mk.key + '##compare'] = Math.round(((nv - cv) / cv) * 10000) / 10000;
+          }
+        }
+      }
+    }
+    return JSON.stringify(obj, null, 2);
+  } catch (e) { return responseStr; }
+}
+
+/* ── 模板组构建 ──
+ * 分组 key 采用"归一化 pattern"：URL query 中的日期类参数值替换为占位符，
+ * 使同接口不同月份的规则归为一组（京麦旧版把月份写进 URL，如 date=202606&startDate=2026-06-01）。
+ * 生成时 generateRule 仍会对原始 pattern 做日期联动替换。
+ */
+function normalizePattern(pat){
+  if (!pat) return '';
+  return String(pat).replace(/([?&])(date|startDate|endDate|dateRange|dateFrom|dateTo|bizDate|statDate|startTime|endTime|beginDate|finishDate)=[^&]*/gi, '$1$2=<DATE>');
+}
+function buildGroups(rules){
+  const byPat = {};
+  for (const r of rules){
+    const key = normalizePattern(r.pattern);
+    (byPat[key] = byPat[key] || []).push(r);
+  }
+  const groups = [];
+  for (const pat of Object.keys(byPat)){
+    const rs = byPat[pat];
+    const monthRules = [];
+    for (const r of rs){
+      const mo = extractMonthOf(r);
+      if (mo) monthRules.push({ mo, rule: r });
+    }
+    monthRules.sort((a,b) => (a.mo.y - b.mo.y) || (a.mo.m - b.mo.m));
+    groups.push({
+      pattern: pat,
+      patternRaw: rs[0].pattern,
+      platform: classifyPlatform(pat),
+      iface: ifaceName(pat),
+      rules: rs,
+      monthRules,
+      canGenerate: monthRules.length > 0
+    });
+  }
+  groups.sort((a,b) => a.platform.localeCompare(b.platform) || b.rules.length - a.rules.length);
+  return groups;
+}
+
+/* ────────────────────────────────────────────────
+ * 通用表单编辑：JSON 响应 → 中文字段表单 → 值写回
+ * ──────────────────────────────────────────────── */
+/* 常见业务字段中文映射（子串匹配，优先命中优先） */
+const CN_FIELD_MAP = [
+  ['pay_gmv', '成交金额'], ['pay_ord_amt', '支付金额'], ['pay_ord_cnt', '支付订单数'],
+  ['pay_byr_cnt', '支付买家数'], ['pay_itm_qty', '支付商品件数'], ['pay_pbt', '支付件单价'],
+  ['pay_pit', '支付笔单价'], ['ipvuv', '访客数'], ['ipv_', '商品浏览量'], ['ipv', '浏览量'],
+  ['add_cart', '加购'], ['collect', '收藏'], ['refund_amt', '退款金额'], ['refund_cnt', '退款笔数'],
+  ['create_gmv', '下单金额'], ['create_cnt', '下单订单数'], ['create_uv', '下单人数'],
+  ['product_click', '商品点击'], ['pay_uv', '成交人数'], ['pay_order_cnt', '成交订单数'],
+  ['deal_amt', '成交金额'], ['deal_num', '成交单量'], ['deal_pro', '成交商品数'],
+  ['deal_user', '成交用户数'], ['deal_rate', '成交率'], ['price_avg', '件单价'],
+  ['ord_amt', '订单金额'], ['ord_qtty', '订单量'], ['sku_qtty', '商品数'], ['user_cnt', '用户数'],
+  ['page_qtty', '浏览量'], ['page_cnt', '访客数'], ['commission', '佣金'], ['gift', '送礼'],
+  ['refund', '退款'], ['serv_cnt', '服务量'], ['robot', '机器人服务'], ['rg_serv', '人工服务'],
+  ['qual_refund', '品质退款'], ['bad_comment', '差评'], ['comment_cnt', '评价数'], ['fav', '收藏'],
+  ['sales', '销量']
+];
+/* 前缀 / 后缀口径翻译（用于区分同名不同口径的字段，如支付金额(日)/(28天)/实际） */
+const CN_PREFIX_MAP = [
+  ['total_aft_sale_', '售后'], ['total_bfr_sale_', '售前'], ['add_cart_', '加购'],
+  ['on_line_', '在线'], ['real_', '实际'], ['refund_', '退款'], ['itm_', '商品'],
+  ['cate_', '行业'], ['br_tag_', '品牌'], ['fhq_', '发货前'], ['fhh_', '发货后'],
+  ['deliver_', '发货'], ['send_', '出库'], ['collect_', '收藏'], ['pay2home_', '到家'],
+  ['robot_', '机器人'], ['rg_', '人工'], ['pay_', '支付']
+];
+const CN_SUFFIX_MAP = [
+  ['_1d', '日'], ['_28d', '28天'], ['_7d', '7天'], ['_14d', '14天'], ['_24h', '24h'], ['_end', '期末']
+];
+function cnLabelFull(key){
+  for (const [pat, label] of CN_FIELD_MAP){
+    const idx = key.indexOf(pat);
+    if (idx !== -1){
+      const prefix = key.slice(0, idx);
+      const suffix = key.slice(idx + pat.length);
+      let pCn = '';
+      for (const [pp, pc] of CN_PREFIX_MAP){
+        if (prefix === pp){ pCn = pc; break; }
+        if (prefix.indexOf(pp) === 0 && pp.length > 0){ pCn = pc + (prefix.slice(pp.length) ? ' ' + prefix.slice(pp.length).replace(/_/g,'') : ''); break; }
+      }
+      if (!pCn && prefix) pCn = prefix.replace(/_/g, ' ');
+      let sCn = suffix;
+      for (const [sp, sc] of CN_SUFFIX_MAP){
+        if (sCn.endsWith(sp)){ sCn = sCn.slice(0, -sp.length) + sc; break; }
+      }
+      sCn = sCn.replace(/_/g, ' ').trim();
+      const rest = ((pCn ? pCn + ' ' : '') + sCn).trim();
+      return rest ? label + ' (' + rest + ')' : label;
+    }
+  }
+  return key;
+}
+function cnLabel(key){
+  for (const [pat, label] of CN_FIELD_MAP){
+    if (key.indexOf(pat) !== -1) return label;
+  }
+  return key;
+}
+/* 精简模式白名单：页面实际展示的字段（按接口 pattern + 子类型匹配）
+ * [字段key, 中文标签]
+ * 猫超支付金额接口（页面 6 张卡片）：核心值 + 月环比(_lfl)，_lfl 是页面真实环比需手动填 */
+const ESSENTIAL_FIELDS = {
+  'ascp-dc.tmall.com': {
+    'pay_month': [
+      ['stat_date', '日期'],
+      ['pay_ord_amt_1d', '支付金额'], ['pay_ord_amt_1d_lfl', '支付金额(月环比)'],
+      ['pay_itm_qty_1d', '支付商品件数'], ['pay_itm_qty_1d_lfl', '支付商品件数(月环比)'],
+      ['pay_pbt_1d', '客单价'], ['pay_pbt_1d_lfl', '客单价(月环比)'],
+      ['pay_byr_rate_1d', '支付转化率(小数)'], ['pay_byr_rate_1d_lfl', '支付转化率环比(pt)'],
+      ['ipvuv_1d', 'IPVUV'], ['ipvuv_1d_lfl', 'IPVUV(月环比)'],
+      ['pay_byr_cnt_1d', '支付用户数'], ['pay_byr_cnt_1d_lfl', '支付用户数(月环比)']
+    ],
+    'trend_month': [
+      ['stat_date', '日期'], ['pay_ord_amt_1d', '支付金额'], ['pay_pbt_1d', '客单价'],
+      ['ipvuv_1d', 'IPVUV'], ['pay_itm_qty_1d', '支付商品件数'],
+      ['pay_byr_rate_1d', '支付转化率(小数)'], ['pay_byr_cnt_1d', '支付用户数']
+    ]
+  }
+};
+function essentialWhitelist(pattern, typeKey){
+  const byType = ESSENTIAL_FIELDS[Object.keys(ESSENTIAL_FIELDS).find(k => pattern && pattern.indexOf(k) !== -1)];
+  if (!byType) return null;
+  return byType[typeKey] || byType['pay_month'] || null;
+}
+/* ── 猫超 olap 组内子类型识别（支付金额 / 趋势分析表-每月 / 多选 / 昨日 / 实时） ──
+ * 页面不同模块请求同一 olap 接口但 code/value 不同，生成时必须选对基底，
+ * 否则生成的是别的模块的规则（如生成支付金额却要看趋势分析表 → 不生效）。
+ */
+function ruleTypeKey(r){
+  const a = r.alias || '';
+  if (a.indexOf('趋势分析表-每月数据') !== -1) return 'trend_month';
+  if (/猫超-\d{2}年\d{1,2}月趋势分析表/.test(a)) return 'trend_multi';
+  if (/猫超-\d{2}年\d{1,2}月支付金额/.test(a)) return 'pay_month';
+  if (a.indexOf('猫超-昨日') !== -1) return 'yesterday';
+  if (a.indexOf('猫超-4.8') !== -1) return 'realtime';
+  return 'other';
+}
+const RULE_TYPE_LABEL = {
+  trend_month: '趋势分析表-每月数据（页面15行表的数据源）',
+  trend_multi: '趋势分析表（按月多选）',
+  pay_month: '支付金额（月度）',
+  yesterday: '昨日数据',
+  realtime: '实时概况',
+  other: '其他'
+};
+/* 月份行数组响应检测：data.data 是 >2 行的对象数组且每行含 8 位 stat_date（如趋势分析表-每月数据）
+ * 支持 static JSON 与 function（数据标记）两种响应 */
+function isMonthArrayResponse(respStr){
+  try {
+    let s = respStr;
+    try { JSON.parse(s); } catch(e){ s = extractFnData(s); if (!s) return false; }
+    const obj = JSON.parse(s);
+    const arr = obj && obj.data && obj.data.data;
+    if (!Array.isArray(arr) || arr.length <= 1) return false;
+    return arr.every(x => x && typeof x === 'object' &&
+      typeof x.stat_date === 'string' && /^\d{8}$/.test(x.stat_date));
+  } catch(e){ return false; }
+}
+/* 在月份行数组头部插入目标月新行（复制最新行结构，stat_date=新月末），返回新对象 */
+function insertMonthRow(obj, tgt){
+  const arr = obj.data.data;
+  const newRow = JSON.parse(JSON.stringify(arr[0]));
+  newRow.stat_date = tgt.mEnd;
+  arr.unshift(newRow);
+  return obj;
+}
+/* ── Function 响应支持（趋势分析表"隐藏当前月"限制模式） ──
+ * 数据以 /*__DATA_START__*\/ ... /*__DATA_END__*\/ 标记内嵌，工具可提取/写回，表单仍可编辑。
+ * 拦截返回时自动过滤 stat_date >= 当前月的行（趋势表只展示完整月份）。
+ */
+const FN_DATA_START = '/*__DATA_START__*/';
+const FN_DATA_END = '/*__DATA_END__*/';
+function extractFnData(fnStr){
+  if (!fnStr) return null;
+  const m = String(fnStr).match(/\/\*__DATA_START__\*\/([\s\S]*?)\/\*__DATA_END__\*\//);
+  return m ? m[1].trim() : null;
+}
+function replaceFnData(fnStr, newDataStr){
+  if (!fnStr) return fnStr;
+  return String(fnStr).replace(/\/\*__DATA_START__\*\/[\s\S]*?\/\*__DATA_END__\*\//,
+    FN_DATA_START + '\n' + newDataStr + '\n' + FN_DATA_END);
+}
+/* 把静态 JSON 响应转成"隐藏当前月"function 响应（规则限制模式） */
+function toHiddenCurrentMonthFn(responseStr){
+  const dataStr = JSON.stringify(JSON.parse(responseStr), null, 2);
+  return '// 自动隐藏当前月：趋势分析表只展示完整月份（当前月及以后的月份不返回）\n' +
+    'var d =\n' + FN_DATA_START + '\n' + dataStr + '\n' + FN_DATA_END + ';\n' +
+    'var now = new Date();\n' +
+    'var ym = String(now.getFullYear()) + String(now.getMonth() + 1).padStart(2, "0");\n' +
+    'if (d && d.data && Array.isArray(d.data.data)){\n' +
+    '  d.data.data = d.data.data.filter(function(x){ return String(x.stat_date).slice(0, 6) < ym; });\n' +
+    '}\n' +
+    'return JSON.stringify(d);';
+}
+/* 取规则响应的可解析 JSON 文本（static 直接返回；function 提取数据标记段） */
+function responseJsonText(respStr, responseType){
+  if (!respStr) return null;
+  if (responseType === 'function'){
+    return extractFnData(respStr);
+  }
+  try { JSON.parse(respStr); return respStr; } catch(e){ return null; }
+}
+/* 从响应 JSON 提取可编辑字段列表
+ * [{ path, key, label, value, type }]
+ * opts: { essential:bool 精简模式(仅页面列), pattern:string }
+ * - 优先使用微信小店 metaConfig.viewMap.*.viewLabel 中文标签
+ * - *_tb / *_ind / *_lfl 后缀 → "环比/同比" 标签
+ * - 跳过只读子树（metaConfig/tips）、数组（trend）、非数字字符串
+ */
+function collectFormFields(jsonObj, opts){
+  opts = opts || {};
+  const whitelist = opts.essential ? essentialWhitelist(opts.pattern || '', opts.typeKey) : null;
+  const fields = [];
+  const viewLabels = {};
+  if (jsonObj && jsonObj.metaConfig && jsonObj.metaConfig.viewMap){
+    for (const k of Object.keys(jsonObj.metaConfig.viewMap)){
+      const v = jsonObj.metaConfig.viewMap[k];
+      if (v && v.viewLabel) viewLabels[k] = v.viewLabel;
+    }
+  }
+  function isNumStr(s){ return /^-?\d+(\.\d+)?$/.test(s); }
+  function walk(node, path, depth, monthRow){
+    if (node == null || depth > 6) return;
+    if (Array.isArray(node)){
+      // 月份行数组（>2 行对象、含 stat_date）：每行展开（精简模式只收白名单字段）
+      const isMonthRows = node.length > 2 && node.every(v => v && typeof v === 'object' && typeof v.stat_date === 'string' && /^\d{8}$/.test(v.stat_date));
+      if (isMonthRows){
+        node.forEach((v, i) => {
+          if (whitelist){
+            // 只展开白名单字段，分组名 = 该行日期
+            for (const w of whitelist){
+              if (v[w[0]] != null && (typeof v[w[0]] === 'number' || (typeof v[w[0]] === 'string' && isNumStr(v[w[0]])))){
+                fields.push({ path: path + '.' + i + '.' + w[0], key: w[0], label: w[1],
+                  group: v.stat_date, value: v[w[0]], type: typeof v[w[0]] });
+              }
+            }
+          } else {
+            walk(v, path + '.' + i, depth + 1, v.stat_date);
+          }
+        });
+      } else if (node.length <= 2 && node.every(v => v && typeof v === 'object')){
+        node.forEach((v, i) => walk(v, path + '.' + i, depth + 1, monthRow));
+      }
+      return;
+    }
+    if (typeof node !== 'object'){
+      if (typeof node === 'number' || (typeof node === 'string' && isNumStr(node))){
+        const last = path.split('.').pop() || path;
+        // 精简模式：只保留白名单字段（用配置的中文标签）
+        if (whitelist){
+          const w = whitelist.find(x => x[0] === last);
+          if (!w) return;
+          fields.push({ path, key: last, label: w[1], group: monthRow || undefined, value: node, type: typeof node });
+          return;
+        }
+        let label;
+        if (/_tb$/.test(last))      label = cnLabelFull(last.slice(0,-3)) + '（环比）';
+        else if (/_ind$/.test(last)) label = cnLabelFull(last.slice(0,-4)) + '（同比）';
+        else if (/_lfl$/.test(last)) label = cnLabelFull(last.slice(0,-4)) + '（环比）';
+        else                        label = viewLabels[last] || cnLabelFull(last);
+        fields.push({ path, key: last, label, group: monthRow || undefined, value: node, type: typeof node });
+      }
+      return;
+    }
+    for (const k of Object.keys(node)){
+      if (k === 'metaConfig' || k === 'tips') continue;    // 只读配置跳过
+      walk(node[k], path ? path + '.' + k : k, depth + 1, monthRow);
+    }
+  }
+  walk(jsonObj, '', 0, null);
+  if (whitelist){
+    // 按白名单顺序排序
+    const order = {};
+    whitelist.forEach((w, i) => order[w[0]] = i);
+    fields.sort((a, b) => (order[a.key] - order[b.key]));
+  }
+  return fields;
+}
+/* 表单值写回 JSON（按 path） */
+function applyFormValues(jsonObj, fields){
+  for (const f of fields){
+    const parts = f.path.split('.');
+    let node = jsonObj;
+    let ok = true;
+    for (let i = 0; i < parts.length - 1; i++){
+      if (node[parts[i]] == null || typeof node[parts[i]] !== 'object'){ ok = false; break; }
+      node = node[parts[i]];
+    }
+    if (!ok) continue;
+    node[parts[parts.length-1]] = f.type === 'number' ? Number(f.value) : String(f.value);
+  }
+  return jsonObj;
+}
+/* 生成时清空环比/同比字符串字段（微信小店 *_tb/_ind），避免新月份沿用旧环比 */
+function clearPeriodOverPeriod(responseStr){
+  try {
+    const obj = JSON.parse(responseStr);
+    (function walk(node){
+      if (!node || typeof node !== 'object') return;
+      if (Array.isArray(node)){ node.forEach(walk); return; }
+      for (const k of Object.keys(node)){
+        if (typeof node[k] === 'string' && (/_tb$|_ind$/.test(k))){ node[k] = ''; continue; }
+        walk(node[k]);
+      }
+    })(obj);
+    return JSON.stringify(obj, null, 2);
+  } catch(e){ return responseStr; }
+}
+/* 计算环比：cur 相对 prev 响应，写 cur 的 *_tb 字段（同路径数值）
+ * prev 为 null 时清空 *_tb；prev 值为 0/空 → 留空 */
+function computeCompare(curRespStr, prevRespStr){
+  try {
+    const cur = JSON.parse(curRespStr);
+    const prev = prevRespStr ? JSON.parse(prevRespStr) : null;
+    const prevVals = {};
+    if (prev){
+      (function walk(node, path){
+        if (!node || typeof node !== 'object') return;
+        if (Array.isArray(node)){ node.forEach(v => walk(v, path)); return; }
+        for (const k of Object.keys(node)){
+          const v = node[k];
+          if (typeof v === 'number' || (typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v))){
+            prevVals[path ? path + '.' + k : k] = Number(v);
+          } else if (v && typeof v === 'object'){
+            walk(v, path ? path + '.' + k : k);
+          }
+        }
+      })(prev, '');
+    }
+    (function walk(node, path){
+      if (!node || typeof node !== 'object') return;
+      if (Array.isArray(node)){ node.forEach(v => walk(v, path)); return; }
+      for (const k of Object.keys(node)){
+        const full = path ? path + '.' + k : k;
+        const v = node[k];
+        if (/_tb$/.test(k) && typeof v === 'string'){
+          const basePath = full.slice(0, -3);
+          const curVal = node[k.slice(0,-3)];
+          const prevVal = prevVals[basePath];
+          if (prevVal == null || prevVal === 0 || curVal == null || curVal === '') node[k] = '';
+          else node[k] = String(Math.round(((Number(curVal) - prevVal) / prevVal) * 1000000) / 1000000);
+        } else if (v && typeof v === 'object'){
+          walk(v, full);
+        }
+      }
+    })(cur, '');
+    return JSON.stringify(cur, null, 2);
+  } catch(e){ return curRespStr; }
+}
+</script>
+
+<script>
+/* ============================================================
+ * TXCS 规则生成器 —— UI 层
+ * ============================================================ */
+'use strict';
+const LS_KEY = 'txcs_rulegen_v1';
+let state = { storeName:'海盛和食品', fileName:'', rules: [], groups: [], selPlatform: null, selGroup: null, selMonths: [], genBase: null, snapshot: null };
+
+const $ = id => document.getElementById(id);
+
+/* ── 持久化 ── */
+function saveLS(){ try { localStorage.setItem(LS_KEY, JSON.stringify({ storeName: state.storeName, fileName: state.fileName, rules: state.rules })); } catch(e){} }
+function loadLS(){
+  try {
+    const d = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+    if (d && Array.isArray(d.rules)){
+      state.storeName = d.storeName || state.storeName;
+      state.fileName  = d.fileName || '';
+      state.rules = d.rules;
+      return true;
+    }
+  } catch(e){}
+  return false;
+}
+
+/* ── 统计条 ── */
+function renderStat(){
+  const rs = state.rules;
+  const en = rs.filter(r => r.enabled !== false).length;
+  const byP = {};
+  for (const r of rs){ const p = classifyPlatform(r.pattern); byP[p] = (byP[p]||0)+1; }
+  let html = '<span>共 <b>'+rs.length+'</b> 条规则</span>' +
+    '<span class="chip green">启用 '+en+'</span><span class="chip red">停用 '+(rs.length-en)+'</span>';
+  for (const p of PLATFORM_ORDER){
+    if (byP[p]) html += '<span class="chip blue">'+p+' '+byP[p]+'</span>';
+  }
+  $('statBar').innerHTML = html;
+}
+
+/* ── 左侧平台 / 模板组 ── */
+function renderSidebar(){
+  const byP = {};
+  for (const g of state.groups){ (byP[g.platform] = byP[g.platform] || []).push(g); }
+  let ph = '';
+  ph += '<div class="platform'+(state.selPlatform===null?' active':'')+'" data-p="__all__">📋 全部 <span class="cnt">'+state.rules.length+'</span></div>';
+  for (const p of PLATFORM_ORDER){
+    if (!byP[p]) continue;
+    const n = byP[p].reduce((a,g)=>a+g.rules.length,0);
+    ph += '<div class="platform'+(state.selPlatform===p?' active':'')+'" data-p="'+p+'">' + p + ' <span class="cnt">'+n+'</span></div>';
+  }
+  $('platformList').innerHTML = ph;
+  document.querySelectorAll('#platformList .platform').forEach(el => {
+    el.onclick = () => { state.selPlatform = el.dataset.p === '__all__' ? null : el.dataset.p; state.selGroup = null; state.selMonths = []; renderSidebar(); renderGenPanel(null); renderRules(); };
+  });
+
+  let gh = '';
+  for (const g of state.groups){
+    if (state.selPlatform && g.platform !== state.selPlatform) continue;
+    if (!g.canGenerate) continue;
+    const last = g.monthRules[g.monthRules.length - 1];
+    const gen = g.canGenerate ? '<button class="gen" data-gen="'+g.pattern.replace(/"/g,'&quot;')+'">+ 批量生成</button>' : '';
+    gh += '<div class="tgroup'+(state.selGroup===g.pattern?' active':'')+'" data-pattern="'+g.pattern.replace(/"/g,'&quot;')+'">' +
+      '<div class="iface">'+g.iface+'</div>' +
+      '<div class="meta">'+g.rules.length+' 条 · 已生成至 '+(last ? last.mo.y+'年'+last.mo.m+'月' : '?')+ '</div>' + gen + '</div>';
+  }
+  $('groupList').innerHTML = gh || '<div class="small" style="color:var(--muted);padding:4px 10px">暂无可用模板组（导入规则文件后自动识别）</div>';
+  document.querySelectorAll('#groupList .tgroup').forEach(el => {
+    el.onclick = (ev) => {
+      if (ev.target.classList.contains('gen')) return;
+      state.selGroup = el.dataset.pattern;
+      const g = state.groups.find(x => x.pattern === state.selGroup);
+      renderSidebar();
+      renderGenPanel(g);
+      renderRules();
+    };
+  });
+  document.querySelectorAll('#groupList .gen').forEach(btn => {
+    btn.onclick = (ev) => {
+      ev.stopPropagation();
+      state.selGroup = btn.dataset.gen;
+      const g = state.groups.find(x => x.pattern === state.selGroup);
+      renderSidebar();
+      renderGenPanel(g);
+      renderRules();
+      $('genPanel').scrollIntoView({ behavior:'smooth' });
+    };
+  });
+}
+
+/* ── 生成面板 ── */
+function renderGenPanel(group){
+  const panel = $('genPanel');
+  if (!group || !group.canGenerate){
+    panel.classList.remove('show');
+    state.genBase = null;
+    return;
+  }
+  panel.classList.add('show');
+  // 组内子类型选择：同接口不同模块（支付金额/趋势分析表-每月/多选/昨日/实时）各自生成，
+  // 默认选最近月份的那条
+  const typeMap = {};
+  for (const mr of group.monthRules){
+    const t = ruleTypeKey(mr.rule);
+    if (!typeMap[t] || (mr.mo.y > typeMap[t].mo.y) || (mr.mo.y === typeMap[t].mo.y && mr.mo.m > typeMap[t].mo.m)){
+      typeMap[t] = mr;
+    }
+  }
+  const types = Object.keys(typeMap).sort();
+  let typeSelHtml = '<div class="gen-box"><h4>② 基底类型（页面模块）</h4>' +
+    '<select id="baseTypeSel" style="width:100%">';
+  for (const t of types){
+    const mr = typeMap[t];
+    typeSelHtml += '<option value="' + t + '">' + RULE_TYPE_LABEL[t] + '（' + mr.mo.y + '年' + mr.mo.m + '月）</option>';
+  }
+  typeSelHtml += '</select><div class="small" style="margin-top:6px;color:var(--yellow)">⚠ 趋势分析表页面的数据源是「趋势分析表-每月数据」，不是支付金额。</div></div>';
+  $('typeBox').innerHTML = typeSelHtml;
+  // 默认选中类型：monthRules 最后一条的类型
+  const defaultBase = group.monthRules[group.monthRules.length - 1];
+  const defaultType = ruleTypeKey(defaultBase.rule);
+  $('baseTypeSel').value = defaultType;
+  state.genBase = typeMap[defaultType];
+  const base = state.genBase;
+  $('baseMonthLabel').textContent = base.mo.y+'年'+base.mo.m+'月';
+  const isMonthArr = isMonthArrayResponse(base.rule.response);
+  $('updateModeHint').style.display = isMonthArr ? '' : 'none';
+  $('baseTypeSel').onchange = () => {
+    state.genBase = typeMap[$('baseTypeSel').value];
+    const b2 = state.genBase;
+    $('baseMonthLabel').textContent = b2.mo.y+'年'+b2.mo.m+'月';
+    const ma = isMonthArrayResponse(b2.rule.response);
+    $('updateModeHint').style.display = ma ? '' : 'none';
+    renderGenPanel(group);
+  };
+
+  // 月份 chips：基底月之后 12 个月
+  const chips = [];
+  let y = base.mo.y, m = base.mo.m + 1;
+  if (m > 12){ m = 1; y++; }
+  for (let i = 0; i < 12; i++){
+    chips.push({ y, m });
+    m++; if (m > 12){ m = 1; y++; }
+  }
+  // 排除已生成月份
+  const have = new Set(group.monthRules.map(x => x.mo.y+'/'+x.mo.m));
+  $('monthChips').innerHTML = chips.map(c => {
+    const key = c.y+'/'+c.m;
+    const done = have.has(key);
+    const sel = state.selMonths.some(s => s.y===c.y && s.m===c.m);
+    return '<span class="month-chip'+(sel?' sel':'')+(done?'" style="opacity:.35;text-decoration:line-through" title="该月已存在"':"")+'" data-y="'+c.y+'" data-m="'+c.m+'">'+c.y+'年'+c.m+'月'+(done?' ✓':'')+'</span>';
+  }).join('');
+  document.querySelectorAll('#monthChips .month-chip').forEach(el => {
+    el.onclick = () => {
+      const y = +el.dataset.y, m = +el.dataset.m;
+      const i = state.selMonths.findIndex(s => s.y===y && s.m===m);
+      if (i >= 0) state.selMonths.splice(i,1); else state.selMonths.push({y,m});
+      renderGenPanel(group);
+    };
+  });
+  $('selAllBtn').onclick = () => {
+    state.selMonths = chips.filter(c => !have.has(c.y+'/'+c.m));
+    renderGenPanel(group);
+  };
+
+  // 指标速填（若基底响应含京麦指标）
+  const dm = detectMetrics(base.rule.response);
+  const mb = $('metricBox');
+  if (dm && !dm.isTrend){
+    mb.style.display = 'block';
+    $('metricGrid').innerHTML = JD_METRICS.map(mk => {
+      const v = dm.values[mk.key];
+      const disp = mk.label.indexOf('%') !== -1 ? (v * 100).toFixed(2) : v;
+      return '<div class="metric-item"><label>'+mk.label+'</label><input data-key="'+mk.key+'" type="number" value="'+disp+'" step="any"></div>';
+    }).join('');
+  } else if (dm && dm.isTrend){
+    mb.style.display = 'block';
+    $('metricGrid').innerHTML = JD_METRICS.map(mk => {
+      const sum = dm.values[mk.key];
+      const disp = mk.label.indexOf('%') !== -1 ? (sum * 100).toFixed(2) : sum;
+      return '<div class="metric-item"><label>'+mk.label+'（趋势总量）</label><input data-key="'+mk.key+'" type="number" value="'+disp+'" step="any"></div>';
+    }).join('');
+  } else {
+    mb.style.display = 'none';
+  }
+
+  $('genBtn').onclick = () => {
+    if (state.selMonths.length === 0){ toast('请先选择目标月份'); return; }
+    const vals = {};
+    document.querySelectorAll('#metricGrid input').forEach(inp => {
+      const raw = parseFloat(inp.value);
+      const mk = JD_METRICS.find(x => x.key === inp.dataset.key);
+      if (!isNaN(raw)) vals[inp.dataset.key] = mk && mk.label.indexOf('%') !== -1 ? raw / 100 : raw;
+    });
+    const base = state.genBase;
+    if (!base){ toast('请先在左侧选择模板组'); return; }
+    const isMonthArr = isMonthArrayResponse(base.rule.response);
+    state.snapshot = state.rules.slice();
+    let added = 0, updated = 0;
+    const months = state.selMonths.slice().sort((a,b) => (a.y-b.y) || (a.m-b.m));
+    for (const t of months){
+      if (isMonthArr){
+        // 更新模式：响应数组头部插入新月份行，直接更新现有规则（同 alias）
+        const tgt = makeMonthCtx(t.y, t.m);
+        const isFn = base.rule.responseType === 'function';
+        const src = isFn ? (extractFnData(base.rule.response) || '{}') : base.rule.response;
+        const obj = JSON.parse(src);
+        insertMonthRow(obj, tgt);
+        const newJson = JSON.stringify(obj, null, 2);
+        const newResp = isFn ? replaceFnData(base.rule.response, newJson) : newJson;
+        const idx = state.rules.findIndex(r => r.alias === base.rule.alias);
+        if (idx >= 0){
+          state.rules[idx].response = newResp;
+          state.rules[idx]._new = true;
+        } else {
+          state.rules.push(Object.assign({}, base.rule, { response: newResp, _new: true }));
+        }
+        updated++;
+      } else {
+        // 普通模式：新增规则
+        const nr = generateRule(base.rule, t);
+        if (Object.keys(vals).length > 0){
+          const dm2 = detectMetrics(nr.response);
+          if (dm2) nr.response = applyMetrics(nr.response, vals);
+        }
+        nr._new = true;
+        state.rules.push(nr);
+        added++;
+      }
+    }
+    saveLS(); renderStat(); renderSidebar(); renderRules();
+    toast(isMonthArr
+      ? '已更新 ' + updated + ' 个月份数据 → ' + base.rule.alias + '（绿色高亮，可继续表单改数值）'
+      : '已生成 ' + added + ' 条规则（绿色高亮，可编辑数值后导出）');
+  };
+}
+
+/* ── 规则表格 ── */
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function renderRules(){
+  const area = $('ruleArea');
+  let rs = state.rules;
+  if (state.selGroup){
+    rs = rs.filter(r => normalizePattern(r.pattern) === state.selGroup);
+  } else if (state.selPlatform){
+    rs = rs.filter(r => classifyPlatform(r.pattern) === state.selPlatform);
+  }
+  if (rs.length === 0){
+    area.innerHTML = '<div class="empty"><div class="big">📄</div>暂无规则。<br>点击右上角 <b>⬆ 导入规则文件</b>（如 rules 目录下的 txcs-interceptor-rules - 海盛和食品0808.json）<br>导入后会自动按平台分类并识别可按月份生成的模板组。</div>';
+    return;
+  }
+  // 规则对象 → 全量索引映射：表格被平台/模板组过滤时，按钮必须用全量索引，
+  // 否则行号与 state.rules[] 错位（会编辑/删除到别的规则）
+  const idxMap = new Map();
+  state.rules.forEach((r, i) => idxMap.set(r, i));
+  area.innerHTML = rs.map((r) => {
+    const i = idxMap.get(r);
+    const bodyLines = (r.bodyPattern||'').split('\n').filter(l => l.trim()).length;
+    const bodyTag = r.bodyPattern ? '<span class="tag body">body×'+bodyLines+'</span>' : '';
+    const fnTag = r.responseType === 'function' ? '<span class="tag fn">⚡fn</span>' : '';
+    const size = Math.round((r.response||'').length/1024) + 'KB';
+    return '<div class="rule-row'+(r.enabled===false?' disabled':'')+(r._new?' new':'')+'">' +
+      '<label class="toggle" title="启用/停用"><input type="checkbox" data-i="'+i+'"'+(r.enabled!==false?' checked':'')+'><span class="slider"></span></label>' +
+      '<span class="alias" title="'+esc(r.alias)+'">'+esc(r.alias||'(无名称)')+'</span>' +
+      '<span class="pat" title="'+esc(r.pattern)+'">'+esc(r.pattern)+'</span>' +
+      '<span class="tag">'+size+'</span>' + bodyTag + fnTag +
+      '<span class="ops">' +
+        '<button data-i="'+i+'" data-op="edit" title="编辑">✏️</button>' +
+        '<button data-i="'+i+'" data-op="dup" title="复制">📄</button>' +
+        '<button data-i="'+i+'" data-op="del" title="删除" style="color:var(--red)">🗑</button>' +
+      '</span></div>';
+  }).join('');
+  area.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.onchange = () => {
+      const i = +cb.dataset.i;
+      state.rules[i].enabled = cb.checked;
+      delete state.rules[i]._new;
+      saveLS(); renderStat(); renderRules();
+    };
+  });
+  area.querySelectorAll('button[data-op]').forEach(btn => {
+    btn.onclick = () => {
+      const i = +btn.dataset.i;
+      const r = state.rules[i];
+      if (btn.dataset.op === 'edit') openModal(i);
+      if (btn.dataset.op === 'dup'){
+        const copy = Object.assign({}, r, { alias: (r.alias||'副本') + ' (copy)', _new: true });
+        state.rules.splice(i+1, 0, copy);
+        saveLS(); renderStat(); renderRules();
+        toast('已复制');
+      }
+      if (btn.dataset.op === 'del'){
+        if (confirm('删除规则：' + (r.alias||r.pattern))){ state.rules.splice(i,1); saveLS(); renderStat(); renderRules(); }
+      }
+    };
+  });
+}
+
+/* ── 编辑弹窗（表单 / JSON 双 tab） ── */
+let editingIdx = -1;
+let formTab = 'form';   // 'form' | 'json'
+let formMode = 'essential';  // 'essential'(页面列) | 'all'(全部字段)
+let editingPattern = '';
+let formFields = [];
+
+function renderFormEditor(){
+  const ta = $('f_response');
+  const box = $('formEditor');
+  const curRule = state.rules[editingIdx];
+  const isFn = curRule && curRule.responseType === 'function';
+  let src = ta.value;
+  if (isFn){
+    const d = extractFnData(src);
+    if (!d){
+      box.innerHTML = '<div class="small" style="color:var(--red)">无法从 function 响应提取数据（缺少数据标记）。</div>';
+      formFields = [];
+      return;
+    }
+    src = d;
+  }
+  let obj = null;
+  try { obj = JSON.parse(src); }
+  catch(e){
+    box.innerHTML = '<div class="small" style="color:var(--red)">响应数据不是合法 JSON，无法表单编辑 —— 请切到 {} JSON 编辑。</div>';
+    formFields = [];
+    return;
+  }
+  const wl = essentialWhitelist(editingPattern, ruleTypeKey(state.rules[editingIdx]));
+  if (!wl && formMode === 'essential') formMode = 'all';   // 无白名单接口强制全部
+  formFields = collectFormFields(obj, { essential: formMode === 'essential', pattern: editingPattern, typeKey: ruleTypeKey(state.rules[editingIdx]) });
+  if (formFields.length === 0){
+    box.innerHTML = '<div class="small" style="color:var(--muted)">未找到可编辑的数值字段（响应为空 / 函数类型 / 无数字字段）。</div>';
+    return;
+  }
+  // 顶部：精简/全部切换（仅存在白名单时显示）
+  let topBar = '';
+  if (wl){
+    topBar = '<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">' +
+      '<span class="small">显示：</span>' +
+      '<button type="button" class="tab-btn' + (formMode==='essential' ? ' active' : '') + '" data-mode="essential">精简（页面列）</button>' +
+      '<button type="button" class="tab-btn' + (formMode==='all' ? ' active' : '') + '" data-mode="all">全部字段 (' + formFields.length + ')</button>' +
+      '</div>';
+  }
+  // 按路径前缀分组显示（月份行数组按 stat_date 分组）
+  const groups = {};
+  for (const f of formFields){
+    const gkey = f.group || (f.path.split('.').length > 1 ? f.path.split('.').slice(0, -1).join('.') : '(顶层)');
+    (groups[gkey] = groups[gkey] || []).push(f);
+  }
+  let html = topBar;
+  for (const g of Object.keys(groups)){
+    // 月份行分组（group=8位日期）：提供"删除该月"按钮（如趋势表不展示某月）
+    const isMonthRow = /^\d{8}$/.test(g);
+    const delBtn = isMonthRow ? ' <button type="button" class="del-row" data-group="' + esc(g) + '" style="padding:1px 8px;font-size:11px;color:var(--red);background:transparent;border:1px solid var(--red);border-radius:4px;margin-left:6px">🗑 删除该月</button>' : '';
+    html += '<div class="fg-label">' + esc(g) + delBtn + '</div><div class="metric-grid" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr))">';
+    for (const f of groups[g]){
+      html += '<div class="metric-item" title="' + esc(f.path) + '">' +
+        '<label>' + esc(f.label) + '</label>' +
+        '<input data-path="' + esc(f.path) + '" data-type="' + f.type + '" type="number" step="any" value="' + esc(f.value) + '">' +
+        '</div>';
+    }
+    html += '</div>';
+  }
+  box.innerHTML = html;
+  box.querySelectorAll('.tab-btn[data-mode]').forEach(btn => {
+    btn.onclick = () => { formMode = btn.dataset.mode; renderFormEditor(); };
+  });
+  // 删除月份行：从响应数组移除该 stat_date 行
+  box.querySelectorAll('.del-row').forEach(btn => {
+    btn.onclick = () => {
+      const g = btn.dataset.group;
+      if (!confirm('删除 ' + g + ' 这一行数据？（如趋势表不想展示该月）')) return;
+      try {
+        const obj = JSON.parse($('f_response').value);
+        const f = formFields.find(x => x.group === g);
+        if (!f) throw new Error('找不到该行');
+        const parts = f.path.split('.');
+        const arr = obj.data && obj.data.data;
+        if (!Array.isArray(arr)) throw new Error('不是月份行数组');
+        let gi = -1;
+        const byIdx = parseInt(parts[2], 10);
+        if (arr[byIdx] && arr[byIdx].stat_date === g) gi = byIdx;
+        else gi = arr.findIndex(x => x && x.stat_date === g);
+        if (gi < 0) throw new Error('数组里没有该月');
+        arr.splice(gi, 1);
+        $('f_response').value = JSON.stringify(obj, null, 2);
+        renderFormEditor();
+        toast('已删除 ' + g + ' 行');
+      } catch(e){ toast('删除失败：' + e.message); }
+    };
+  });
+}
+
+/* 表单当前值 → 写回 textarea（供保存 / 计算环比 / 切 tab 前同步） */
+function syncFormToTextarea(){
+  if (formTab !== 'form') return;
+  try {
+    const curRule = state.rules[editingIdx];
+    const isFn = curRule && curRule.responseType === 'function';
+    const src = isFn ? (extractFnData($('f_response').value) || '{}') : $('f_response').value;
+    const obj = JSON.parse(src);
+    const fields = [];
+    document.querySelectorAll('#formEditor input[data-path]').forEach(inp => {
+      fields.push({ path: inp.dataset.path, type: inp.dataset.type, value: inp.value });
+    });
+    applyFormValues(obj, fields);
+    const newJson = JSON.stringify(obj, null, 2);
+    $('f_response').value = isFn ? replaceFnData($('f_response').value, newJson) : newJson;
+  } catch(e){ /* 非 JSON 忽略 */ }
+}
+
+function setTab(tab){
+  formTab = tab;
+  $('tabFormBtn').classList.toggle('active', tab === 'form');
+  $('tabJsonBtn').classList.toggle('active', tab === 'json');
+  if (tab === 'json') syncFormToTextarea();
+  $('formEditor').style.display = tab === 'form' ? '' : 'none';
+  $('f_response').style.display  = tab === 'json' ? '' : 'none';
+  if (tab === 'form') renderFormEditor();
+}
+
+function openModal(i){
+  editingIdx = i;
+  const r = state.rules[i];
+  editingPattern = r.pattern || '';
+  formMode = 'essential';
+  $('modalTitle').textContent = '编辑规则（' + (r.alias||'') + '）';
+  $('f_alias').value = r.alias || '';
+  $('f_pattern').value = r.pattern || '';
+  $('f_body').value = r.bodyPattern || '';
+  $('f_cookie').value = r.cookiePattern || '';
+  $('f_status').value = r.status || 200;
+  $('f_ct').value = r.contentType || 'application/json';
+  $('f_rt').value = r.responseType || 'static';
+  $('f_response').value = r.response || '';
+  setTab('form');
+  $('modal').classList.add('show');
+}
+function closeModal(){ $('modal').classList.remove('show'); editingIdx = -1; }
+$('cancelBtn').onclick = closeModal;
+$('modal').addEventListener('click', e => { if (e.target === $('modal')) closeModal(); });
+$('tabFormBtn').onclick = () => setTab('form');
+$('tabJsonBtn').onclick = () => setTab('json');
+
+$('saveBtn').onclick = () => {
+  const pat = $('f_pattern').value.trim();
+  if (!pat){ toast('URL Pattern 必填'); return; }
+  syncFormToTextarea();
+  const r = state.rules[editingIdx];
+  r.alias = $('f_alias').value.trim();
+  r.pattern = pat;
+  r.bodyPattern = $('f_body').value;
+  r.cookiePattern = $('f_cookie').value;
+  r.status = parseInt($('f_status').value, 10) || 200;
+  r.contentType = $('f_ct').value;
+  r.responseType = $('f_rt').value;
+  r.response = $('f_response').value;
+  delete r._new;
+  saveLS(); renderStat(); renderSidebar(); renderRules(); closeModal();
+  toast('已保存');
+};
+
+/* 计算环比：按同接口上月规则，自动填所有 *_tb 字段 */
+$('cmpBtn').onclick = () => {
+  syncFormToTextarea();
+  const curRule = state.rules[editingIdx];
+  const mo = extractMonthOf(curRule);
+  let prevRule = null;
+  const group = state.groups.find(g => normalizePattern(g.pattern) === normalizePattern(curRule.pattern));
+  if (group && mo){
+    const p = prevMonth(mo.y, mo.m);
+    prevRule = group.monthRules.find(x => x.mo.y === p.y && x.mo.m === p.m);
+  }
+  $('f_response').value = computeCompare($('f_response').value, prevRule ? prevRule.rule.response : null);
+  renderFormEditor();
+  toast(prevRule ? '环比已按「' + prevRule.rule.alias + '」计算' : '未找到同接口上月规则，环比已清空');
+};
+
+/* 隐藏当前月：把静态 JSON 响应转为 function 限制模式（拦截返回时自动过滤当前月及以后的行） */
+$('hideMonthBtn').onclick = () => {
+  const r = state.rules[editingIdx];
+  if (!r) return;
+  if (r.responseType === 'function'){
+    toast('已是限制模式（隐藏当前月）；如要去掉限制，请切 JSON 编辑手动改回 static');
+    return;
+  }
+  if (!confirm('转换为「隐藏当前月」限制模式？\n\n拦截返回时会自动过滤 stat_date 为当前月及以后的行（趋势分析表只展示完整月份）。数据仍在表单里可编辑。')) return;
+  try {
+    JSON.parse(r.response);   // 校验是合法 JSON
+    r.response = toHiddenCurrentMonthFn(r.response);
+    r.responseType = 'function';
+    $('f_rt').value = 'function';
+    $('f_response').value = r.response;
+    renderFormEditor();
+    toast('已启用「隐藏当前月」限制模式（保存后生效）');
+  } catch(e){ toast('转换失败：响应不是合法 JSON'); }
+};
+
+$('metricBtn').onclick = () => {
+  const ta = $('f_response');
+  const dm = detectMetrics(ta.value);
+  if (!dm || dm.isTrend){ toast('当前响应不是京麦新版 getSummary 结构'); return; }
+  const rows = JD_METRICS.map(mk => {
+    const v = dm.values[mk.key];
+    const disp = mk.label.indexOf('%') !== -1 ? (v * 100).toFixed(2) : v;
+    return '<div class="metric-item"><label>'+mk.label+'</label><input id="qm_'+mk.key.replace(/[^a-z0-9]/gi,'_')+'" type="number" value="'+disp+'" step="any"></div>';
+  }).join('');
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:60;display:flex;align-items:center;justify-content:center';
+  box.innerHTML = '<div class="modal-box" style="width:520px"><h2>指标速填（getSummary）</h2><div class="metric-grid" style="grid-template-columns:repeat(2,1fr)">'+rows+'</div><div class="modal-ft"><button id="qmCancel">取消</button><button class="primary" id="qmOk">应用</button></div></div>';
+  document.body.appendChild(box);
+  box.onclick = e => { if (e.target === box) box.remove(); };
+  box.querySelector('#qmCancel').onclick = () => box.remove();
+  box.querySelector('#qmOk').onclick = () => {
+    const vals = {};
+    document.querySelectorAll('#modal input[id^=qm_]').forEach(inp => {
+      const key = Object.keys(JD_METRICS).map(k => JD_METRICS[k].key).find(k => 'qm_'+k.replace(/[^a-z0-9]/gi,'_') === inp.id);
+      const raw = parseFloat(inp.value);
+      const mk = JD_METRICS.find(x => x.key === key);
+      if (key && !isNaN(raw)) vals[key] = mk && mk.label.indexOf('%') !== -1 ? raw/100 : raw;
+    });
+    ta.value = applyMetrics(ta.value, vals);
+    renderFormEditor();
+    box.remove(); toast('指标已应用');
+  };
+};
+
+/* ── 导入 ── */
+$('importBtn').onclick = () => $('importFile').click();
+$('importFile').onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const parsed = JSON.parse(ev.target.result);
+      const imported = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.rules) ? parsed.rules : null);
+      if (!imported) throw new Error('格式不对（需要 {version, rules} 或数组）');
+      // 从文件名提取店铺
+      const m = file.name.match(/txcs-interceptor-rules - (.+?)(?:\d{4})?\.json$/);
+      if (m && m[1]) state.storeName = m[1].replace(/\d{4}$/,'');
+      state.fileName = file.name;
+      $('storeName').value = state.storeName;
+      state.rules = imported;
+      state.selPlatform = null; state.selGroup = null; state.selMonths = [];
+      state.groups = buildGroups(state.rules);
+      saveLS(); renderStat(); renderSidebar(); renderGenPanel(null); renderRules();
+      toast('已导入 '+imported.length+' 条规则，识别出 '+state.groups.filter(g=>g.canGenerate).length+' 个可批量生成的模板组');
+    } catch (err) { toast('导入失败：' + err.message); }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+};
+
+/* ── 导出 ── */
+$('exportBtn').onclick = () => {
+  if (state.rules.length === 0){ toast('没有规则可导出'); return; }
+  const now = new Date();
+  const mmdd = pad2(now.getMonth()+1) + pad2(now.getDate());
+  let fname = state.fileName || ('txcs-interceptor-rules - ' + state.storeName + mmdd + '.json');
+  if (!/\.json$/i.test(fname)) fname += '.json';
+  const outRules = $('onlyEnabled').checked ? state.rules.filter(r => r.enabled !== false) : state.rules;
+  // 去掉 _new 标记
+  const clean = outRules.map(r => { const c = Object.assign({}, r); delete c._new; return c; });
+  // 规则排序：bodyPattern 条件多的（具体规则）在前，条件少的（兜底规则）在后。
+  // injected.js 按数组顺序遍历返回第一个命中，若兜底规则（如"猫超-昨日成交概况"只有
+  // "code":"1757" 一个条件）排在具体规则前面，会抢走所有同类请求导致新规则不生效。
+  const sorted = clean.slice().sort((a, b) => {
+    const la = (a.bodyPattern||'').split('\n').filter(l => l.trim()).length;
+    const lb = (b.bodyPattern||'').split('\n').filter(l => l.trim()).length;
+    return lb - la;
+  });
+  const payload = { version: 1, rules: sorted };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('已导出 ' + clean.length + ' 条 → ' + fname + ' ｜ ⚠ 导入扩展前请先在 popup 清空旧规则（扩展按 pattern 去重，不先清空会跳过新规则）', 6000);
+};
+
+/* ── 清空 ── */
+$('clearBtn').onclick = () => {
+  if (!confirm('清空全部规则并删除本地缓存？')) return;
+  state.rules = []; state.groups = []; state.selPlatform = state.selGroup = null; state.selMonths = [];
+  try { localStorage.removeItem(LS_KEY); } catch(e){}
+  renderStat(); renderSidebar(); renderGenPanel(null); renderRules();
+  toast('已清空');
+};
+
+/* ── 店铺/文件名联动 ── */
+$('storeName').oninput = () => { state.storeName = $('storeName').value.trim(); };
+$('fileName').oninput = () => { state.fileName = $('fileName').value.trim(); };
+
+/* ── Toast ── */
+let toastTimer = null;
+function toast(msg, ms){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), ms || 2600);
+}
+
+/* ── 启动 ── */
+(function init(){
+  if (loadLS()){
+    state.groups = buildGroups(state.rules);
+    $('storeName').value = state.storeName;
+    $('fileName').value = state.fileName || '';
+    renderStat(); renderSidebar(); renderRules();
+    toast('已从本地缓存恢复 '+state.rules.length+' 条规则');
+  } else {
+    renderStat(); renderSidebar(); renderRules();
+  }
+})();
+</script>
+</body>
+</html>
