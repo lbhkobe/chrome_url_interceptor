@@ -9,7 +9,7 @@ version: 1.0.0
 Chrome MV3 扩展「TXCS URL Interceptor」，拦截京东/京麦、淘宝生意参谋、天猫超市(猫超)、微信小店、电子税务局等数据后台接口，返回 mock 响应展示定制业绩数据。覆盖：每月生成新规则、排查"规则不生效"、电子税务局 PDF→规则、维护规则生成器工具。
 
 ## 项目地图
-- 扩展本体：`E:\Whale\tmcs_extension`
+- 扩展本体：`D:\Whale\chrome_url_interceptor`（2026-08 起实际位置，旧文档的 E:\Whale\tmcs_extension 已不存在）
   - `background.js`：declarativeNetRequest 网络层拦截（仅 URL 匹配规则）+ webNavigation.onCommitted 提前注入
   - `injected.js`：MAIN world 覆写 fetch/XHR，规则匹配 = pattern（子串/通配符*/正则 /re/）+ bodyPattern（逐行 AND 子串）+ cookiePattern；**按数组顺序返回第一个命中**
   - `content.js`：规则经 `<html data-txcs-rules>` 属性跨 world 传给 MAIN world（CSP 下唯一通道）
@@ -31,7 +31,7 @@ Chrome MV3 扩展「TXCS URL Interceptor」，拦截京东/京麦、淘宝生意
 ## 平台分类（按 pattern 自动识别，classifyPlatform）
 | 平台 | pattern 特征 | 子类型/要点 |
 |---|---|---|
-| 京东·京麦新版 | .jd.com/api/lowcode/tradeSummary | getSummary/getTrend（8 指标速填；月份在 bodyPattern） |
+| 京东·京麦新版 | .jd.com/api/lowcode/tradeSummary | getSummary/getTrend（8 指标速填；月份在 bodyPattern；**getTrend 响应 series 必须只有 1 条=支付金额**，多 1 条图表就崩） |
 | 京东·京麦旧版 | jd.com/brand、ppzh.jd.com | getProSummary/getProTrend/getVenderDealSummayData（**月份在 URL query**） |
 | 淘宝·生意参谋 | sycm.taobao.com | overview/trend（dateRange 在 URL） |
 | 天猫超市 | ascp-dc.tmall.com/.../olap | **1757=支付金额 / 1772+value=month=趋势表**（同 URL 靠 code/value 区分模块） |
@@ -63,6 +63,7 @@ Chrome MV3 扩展「TXCS URL Interceptor」，拦截京东/京麦、淘宝生意
 3. **接口模块不匹配**：同域名同路径不同 code = 不同页面模块。配了 1757 支付金额，趋势表页面（1772+month）不会请求它 → "没效果"是正常的
 4. **分类/分组索引错位**：过滤后按钮 data-index 必须映射全量数组索引（idxMap），否则点 A 开 B
 5. 兜底规则补 `"value":"day"` 约束可避免抢请求
+6. **getTrend series 数超标 → 图表崩溃**：页面 bar-line-chart 报 `Cannot read properties of undefined (reading 'get')` = mock 返回 6 个 series 而真实 API 只有 1 个（cartesian2d 按 1 条线建轴映射，索引对不上读 undefined）。修复：series 只留第一条 `jdr_sch_trade_deal_ord_ord_amt_sz_trade_deal_snapshot`（支付金额），删其余 5 个（成交单量/商品数/用户数/PV/UV）。2026-08 实测 2501~2608 全部 20 条均中招，已全量修复
 
 ## 电子税务局 PDF → 规则（含 2026-08 事故教训）
 - reportId 映射：BDA0610606=申报表(-01,PDF第1页) / BDA0610607=附列资料一(-02,第2页) / BDA0610608=附列资料二(-03,第3页) / BDA0611153=附加税费情况表(-06,第6页)；skssqq=税款所属期起
@@ -91,6 +92,7 @@ Chrome MV3 扩展「TXCS URL Interceptor」，拦截京东/京麦、淘宝生意
 - 猫超 olap 的 bodyPattern 两行 `"value":"YYYYMMDD"` 同 key（上月+本月），靠"值年月 < 基底月 → 上月语义"判定
 - _lfl 月环比是页面真实环比（相对真实后台上月），文件内算不出来 → 必须手填；rate 类字段 _lfl 是 pt 差值
 - 规则文件成对复制、popup 导入前清空、工具导出自动排序——见上
+- **getTrend 响应 series 必须单条**（仅支付金额 `jdr_sch_trade_deal_ord_ord_amt_sz_trade_deal_snapshot`）；`script/new_version_json/getTrend_*.json` 源数据与 gen_rules_new_version.js 生成物是 6 series（含成交单量/商品数/用户数/PV/UV），重新生成/导入前先裁减，否则页面图表崩溃
 - 单文件 HTML 无 linter：改工具后必须提取 script 用 node --check；core 测试要**剥 'use strict'**（strict eval 不泄漏函数声明）
 
 ## 支持文件

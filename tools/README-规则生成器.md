@@ -1,6 +1,6 @@
 # TXCS 规则生成器 使用说明
 
-位置：`E:\Whale\tmcs_extension\tools\txcs-rule-generator.html`
+位置：`D:\Whale\chrome_url_interceptor\tools\txcs-rule-generator.html`
 单文件工具，双击用浏览器打开即可，无需安装、无需联网、零依赖。
 
 ## 它是干什么的

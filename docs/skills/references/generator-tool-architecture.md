@@ -1,6 +1,6 @@
 # 生成器工具架构与核心算法（tools/txcs-rule-generator.html）
 
-维护 E:\Whale\tmcs_extension\tools\txcs-rule-generator.html（单文件、零依赖、双击即用、深色 UI）时使用。核心逻辑在 `<script id="core">`（纯函数无 DOM），UI 在第二个 `<script>`（state 全局对象 + renderXxx() 重渲染），localStorage key `txcs_rulegen_v1` 持久化 {storeName, fileName, rules}。
+维护 D:\Whale\chrome_url_interceptor\tools\txcs-rule-generator.html（单文件、零依赖、双击即用、深色 UI）时使用。核心逻辑在 `<script id="core">`（纯函数无 DOM），UI 在第二个 `<script>`（state 全局对象 + renderXxx() 重渲染），localStorage key `txcs_rulegen_v1` 持久化 {storeName, fileName, rules}。
 
 ## 核心算法
 
@@ -36,6 +36,7 @@ URL query 中日期参数（date|startDate|endDate|dateRange|dateFrom|dateTo|biz
 - 猫超支付金额/趋势表日期联动（value 上月+本月、compareStartDate 上月）
 - code 值 1757 不被 YYYYMM 误替换
 - 趋势表"更新模式"插入行（16→18 行、头部新月末）
+- **getTrend 生成后 series 必须保持单条（仅支付金额）**：基底若含 6 series（旧源数据/旧规则）生成物会带崩图表；applyMetrics trend 分支按 code 缩放存在的 series，单条时只缩放支付金额
 - function 限制模式用 `new Function(fnCode)()` 执行验证过滤当前月（断言不含当月行）
 - 表单字段提取/写回往返、computeCompare
 - 过滤视图索引映射（idxMap：renderRules 在平台/模板组过滤后，行按钮 data-i 必须用全量数组索引 `idxMap = new Map(); state.rules.forEach((r,i)=>idxMap.set(r,i))`，否则点 A 编辑 B——真实踩过）

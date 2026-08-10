@@ -40,6 +40,14 @@ pattern 统一为 `ascp-dc.tmall.com/api/v1/queryData/api-ascp-dc-ai_tj_index_v2
 - 根因：renderRules 过滤后行按钮 data-i 用的是过滤数组下标（0..22），事件却用 state.rules[i] 全量数组取值 → 错位。
 - 修复：idxMap 全量索引映射。注意 renderRules 里 checkbox toggle、edit/dup/del 三按钮都中招，统一修。
 
+## case study：getTrend 图表崩溃（bar-line-chart Cannot read properties of undefined (reading 'get')）
+
+- 症状：京麦新版 7月/8月 趋势图页面报错，图表不渲染
+- 根因：真实 API getTrend 只返回 **1 个 series**（支付金额，参考 script/new_version_json/getTrend.json），页面图表按 1 条线初始化坐标轴映射；mock 返回 6 个 series（多出成交单量/商品数/用户数/浏览量PV/访客数UV）→ series Map 索引对不上 → 轴对象 undefined 调 `.get()` 崩溃
+- 修复：`series` 只保留第一条 `jdr_sch_trade_deal_ord_ord_amt_sz_trade_deal_snapshot`，删其余 5 个；categories/data 不动（7月/8月各 31 天）
+- 排查技巧：报错优先怀疑 series 数与真实 API 不一致，对比 `script/new_version_json/getTrend.json`（1 series）
+- 教训：2026-08 发现 **2501~2608 全部 20 条 getTrend 都是 6 series**（同一条生成流水线产出），7/8月只是正在看的月份先爆；已全量裁成单 series。`script/new_version_json/getTrend_*.json` 源数据仍是 6 series，用 gen_rules_new_version.js 重新生成前必须先裁减，否则坑会复发
+
 ## case study：生意参谋不出现在模板组列表
 
 - 症状：生意参谋 15 条规则没有"批量生成"组。
