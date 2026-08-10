@@ -14,7 +14,7 @@ Chrome MV3 扩展「TXCS URL Interceptor」，拦截京东/京麦、淘宝生意
   - `injected.js`：MAIN world 覆写 fetch/XHR，规则匹配 = pattern（子串/通配符*/正则 /re/）+ bodyPattern（逐行 AND 子串）+ cookiePattern；**按数组顺序返回第一个命中**
   - `content.js`：规则经 `<html data-txcs-rules>` 属性跨 world 传给 MAIN world（CSP 下唯一通道）
   - `popup.js/html`：规则管理（增删改查/导入导出），v1.1.0+ 平台→接口两级分组
-  - `rules/txcs-interceptor-rules - {店铺}{MMDD}.json`：规则文件（{version:1, rules:[]}），**按店铺分文件（海盛和食品/蓝色海洋），每月更新**
+  - `rules/{店铺}_{YYYYMMDD}_{序号}.json`（如 `海盛和食品_20260810_01.json`）：规则文件（{version:1, rules:[]}），**按店铺分文件（海盛和食品/蓝色海洋），每月更新**；**改完规则后必须按此命名重命名最新文件**（2026-08-10 起约定：店铺_下划线_日期_下划线_序号，同一天多次改动序号 01/02/03 递增）
 - 规则生成工具：`tools/txcs-rule-generator.html`（单文件、零依赖、双击即用，核心逻辑在 `<script id="core">` 纯函数可 node 提取测试）
 - **改扩展源码必须同步升 manifest.json 版本号**（用户硬性要求）
 
@@ -80,9 +80,9 @@ Chrome MV3 扩展「TXCS URL Interceptor」，拦截京东/京麦、淘宝生意
 - 一键生成脚本：templates/gen_tax_from_pdf.py（参考用法）+ scripts/tax-pdf-to-rules.py
 
 ## 两公司规则文件互为镜像
-- `txcs-interceptor-rules - {公司}YYYYMMDD.json` 每个文件含两家全部规则，仅本公司 enabled=True（海盛和文件里蓝色海洋规则 enabled=False，反之亦然）
+- `{公司}_{YYYYMMDD}_{序号}.json`（如 `海盛和食品_20260810_01.json`）每个文件含两家全部规则，仅本公司 enabled=True（海盛和文件里蓝色海洋规则 enabled=False，反之亦然）；两文件同日序号一致
 - 改一边必须同步另一边 response（**逐字节一致，仅 enabled 不同**），同步后 `hsh[i]['response'] == blue[i]['response']` 逐索引验证；**只同步 response 字段**，保留目标文件 alias/pattern（两文件 alias 命名可能略异如 V2 前缀位置）
-- 文件名日期后缀可能被用户重命名（如 20260809_02），操作前先 ls 确认
+- 文件名日期后缀可能被用户重命名（如 20260809_02 → 新约定 `店铺_YYYYMMDD_序号`），操作前先 ls 确认
 - 详见 references/paired-rule-files.md
 
 ## 关键陷阱（跨场景通用）

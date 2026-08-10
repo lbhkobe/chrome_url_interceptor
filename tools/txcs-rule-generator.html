@@ -1381,8 +1381,8 @@ $('importFile').onchange = (e) => {
       const parsed = JSON.parse(ev.target.result);
       const imported = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.rules) ? parsed.rules : null);
       if (!imported) throw new Error('格式不对（需要 {version, rules} 或数组）');
-      // 从文件名提取店铺
-      const m = file.name.match(/txcs-interceptor-rules - (.+?)(?:\d{4})?\.json$/);
+      // 从文件名提取店铺（兼容旧格式 `txcs-interceptor-rules - {店铺}{MMDD}.json` 与新格式 `{店铺}_{YYYYMMDD}_{序号}.json`）
+      const m = file.name.match(/txcs-interceptor-rules - (.+?)(?:\d{4})?\.json$/) || file.name.match(/^([^_]+?)_\d{8}_\d{2}\.json$/);
       if (m && m[1]) state.storeName = m[1].replace(/\d{4}$/,'');
       state.fileName = file.name;
       $('storeName').value = state.storeName;
@@ -1401,8 +1401,8 @@ $('importFile').onchange = (e) => {
 $('exportBtn').onclick = () => {
   if (state.rules.length === 0){ toast('没有规则可导出'); return; }
   const now = new Date();
-  const mmdd = pad2(now.getMonth()+1) + pad2(now.getDate());
-  let fname = state.fileName || ('txcs-interceptor-rules - ' + state.storeName + mmdd + '.json');
+  const yyyymmdd = String(now.getFullYear()) + pad2(now.getMonth()+1) + pad2(now.getDate());
+  let fname = state.fileName || (state.storeName + '_' + yyyymmdd + '_01.json');
   if (!/\.json$/i.test(fname)) fname += '.json';
   const outRules = $('onlyEnabled').checked ? state.rules.filter(r => r.enabled !== false) : state.rules;
   // 去掉 _new 标记
