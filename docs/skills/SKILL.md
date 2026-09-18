@@ -104,3 +104,4 @@ Chrome MV3 扩展「TXCS URL Interceptor」，拦截京东/京麦、淘宝生意
 - references/paired-rule-files.md — 两公司镜像文件同步规则与核对法
 - scripts/test_txcs_gen.js — 核心单测+e2e（**36 断言**，改工具必跑）；scripts/verify-core.js — 冒烟测试（13 模板组）；scripts/test-core-scaffold.js — node 测试脚手架（10 断言）。**三个脚本都路径无关**：直接 `node docs/skills/scripts/test_txcs_gen.js` 即可（默认 tools/txcs-rule-generator.html + rules/ 日期最新文件），也可传 `<HTML> <规则文件>`；旧版硬编码 `/mnt/e/Whale/tmcs_extension` 路径 2026-09 已废弃
 - scripts/tax-pdf-to-rules.py / templates/gen_tax_from_pdf.py — 税务 PDF→规则生成（三序列对齐 + **自洽/多重集双门禁**，不过门禁不写文件）：直接传 `.pdf` 即用（PyMuPDF word 坐标重建排版顺序，**本机没有 pdftotext/pdftoppm 也能跑**），传 `.txt` 走 pdftotext -layout 输出；页6 合计行仍需按电子税务局那份 reference 手工按列修正；**同月数据修订不要用它们**（走定向替换流程）
+- scripts/audit-tax-rules.py — 税务规则体检：规则 vs 原始 PDF 的非零值反向核对 + 份数逐行对照（`python3 docs/skills/scripts/audit-tax-rules.py <规则.json> <公司> <月份> <PDF>`），配合 references/electron-tax-pdf-mapping.md「数据自检三条腿」的列内四则自洽与千分位规范性扫描
