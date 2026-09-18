@@ -1,12 +1,29 @@
 #!/usr/bin/env node
 /* TXCS 规则生成器核心冒烟测试：提取 HTML 中 <script id="core"> 并用真实规则文件验证。
- * 用法：node verify-core.js [规则文件路径] [工具HTML路径]
- * 通过标准：模板组识别、生成 2609 规则 JSON 合法、无旧日期残留、模拟扩展导入成功。
+ * 用法：node docs/skills/scripts/verify-core.js [规则文件路径] [工具HTML路径]
+ *   不传参时自动定位（规则文件 = rules/ 日期最新那份，HTML = tools/txcs-rule-generator.html）。
+ * 通过标准：模板组识别、生成 2609 规则 JSON 合法、无旧日期残留。
  * 坑：eval 前剥 'use strict'（否则函数声明不泄漏）；本脚本自身也不能有 'use strict'。 */
 const fs = require('fs');
+const path = require('path');
 
-const RULES_FILE = process.argv[2] || '/mnt/e/Whale/tmcs_extension/rules/txcs-interceptor-rules - 海盛和食品0808.json';
-const HTML_FILE  = process.argv[3] || '/mnt/e/Whale/tmcs_extension/tools/txcs-rule-generator.html';
+const ROOT = path.resolve(__dirname, '../../..');
+
+function pickNewestRules(){
+  const dir = path.join(ROOT, 'rules');
+  const files = fs.readdirSync(dir).filter(f => /_\d{8}_\d{2}\.json$/.test(f));
+  if (!files.length) throw new Error('rules/ 下没有 {店铺}_{YYYYMMDD}_{序号}.json 规则文件');
+  files.sort((a, b) => {
+    const ka = (a.match(/_(\d{8})_(\d{2})\.json$/) || []).slice(1).join('');
+    const kb = (b.match(/_(\d{8})_(\d{2})\.json$/) || []).slice(1).join('');
+    if (ka !== kb) return ka < kb ? -1 : 1;
+    return a.startsWith('海盛和') ? 1 : -1;
+  });
+  return path.join(dir, files[files.length - 1]);
+}
+
+const RULES_FILE = process.argv[2] || pickNewestRules();
+const HTML_FILE  = process.argv[3] || path.join(ROOT, 'tools/txcs-rule-generator.html');
 
 const html = fs.readFileSync(HTML_FILE, 'utf8');
 const m = html.match(/<script id="core">([\s\S]*?)<\/script>/);

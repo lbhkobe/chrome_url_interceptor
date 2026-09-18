@@ -1,12 +1,29 @@
 #!/usr/bin/env node
 /* 单文件 HTML 工具 core 测试脚手架
- * 用法：node test-core-scaffold.js [HTML路径] [规则文件路径]
+ * 用法：node docs/skills/scripts/test-core-scaffold.js [HTML路径] [规则文件路径]
+ *   不传参时自动定位（HTML=tools/txcs-rule-generator.html，规则文件=rules/ 日期最新的那份）。
  * 从 <script id="core"> 提取纯逻辑函数 eval 后断言 —— 改工具后跑一遍防止回归。
  */
 const fs = require('fs');
+const path = require('path');
 
-const HTML_PATH = process.argv[2] || '/mnt/e/Whale/tmcs_extension/tools/txcs-rule-generator.html';
-const RULES_PATH = process.argv[3] || '/mnt/e/Whale/tmcs_extension/rules/txcs-interceptor-rules - 海盛和食品0808.json';
+const ROOT = path.resolve(__dirname, '../../..');
+
+function pickNewestRules(){
+  const dir = path.join(ROOT, 'rules');
+  const files = fs.readdirSync(dir).filter(f => /_\d{8}_\d{2}\.json$/.test(f));
+  if (!files.length) throw new Error('rules/ 下没有 {店铺}_{YYYYMMDD}_{序号}.json 规则文件');
+  files.sort((a, b) => {
+    const ka = (a.match(/_(\d{8})_(\d{2})\.json$/) || []).slice(1).join('');
+    const kb = (b.match(/_(\d{8})_(\d{2})\.json$/) || []).slice(1).join('');
+    if (ka !== kb) return ka < kb ? -1 : 1;
+    return a.startsWith('海盛和') ? 1 : -1;
+  });
+  return path.join(dir, files[files.length - 1]);
+}
+
+const HTML_PATH = process.argv[2] || path.join(ROOT, 'tools/txcs-rule-generator.html');
+const RULES_PATH = process.argv[3] || pickNewestRules();
 
 const html = fs.readFileSync(HTML_PATH, 'utf8');
 const m = html.match(/<script id="core">([\s\S]*?)<\/script>/);
@@ -23,7 +40,7 @@ function check(name, cond, detail){
 
 const data = JSON.parse(fs.readFileSync(RULES_PATH, 'utf8'));
 const rules = data.rules;
-console.log('规则数:', rules.length);
+console.log('规则数:', rules.length, '|', RULES_PATH);
 const groups = buildGroups(rules);
 console.log('模板组:', groups.length, '| 可生成:', groups.filter(g => g.canGenerate).length);
 
@@ -47,10 +64,13 @@ if (mc){
   check('value 联动本月末', nr2.bodyPattern.indexOf('"value":"20260930"') !== -1, nr2.bodyPattern);
 }
 
-/* ── 示例断言：表单字段（精简模式 7 列 + 标签无重复） ── */
+/* ── 示例断言：表单字段（猫超支付金额精简模式 = 13 字段，含 _lfl；趋势表是 7 列） ──
+ * 依据 references/platform-fingerprints.md「精简白名单 ESSENTIAL_FIELDS」
+ * —— 曾把此处误写成 7（那是趋势表的列数），2026-09 修正。 */
+const ESSENTIAL_FIELDS_CAT_PAY = 13;
 if (mc){
   const ess = collectFormFields(JSON.parse(mc.response), { essential: true, pattern: mc.pattern });
-  check('精简模式 7 字段', ess.length === 7, ess.length);
+  check('精简模式 13 字段（支付金额）', ess.length === ESSENTIAL_FIELDS_CAT_PAY, ess.length);
   const all = collectFormFields(JSON.parse(mc.response));
   const labels = all.map(f => f.label);
   const dups = labels.filter((l, i) => labels.indexOf(l) !== i);

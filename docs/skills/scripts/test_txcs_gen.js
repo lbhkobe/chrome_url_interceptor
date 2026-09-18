@@ -1,14 +1,35 @@
 #!/usr/bin/env node
 /* TXCS 规则生成器核心逻辑测试：node 直接跑（无依赖）。
- * 用法: node scripts/test_txcs_gen.js
+ * 用法: node docs/skills/scripts/test_txcs_gen.js [工具HTML] [规则文件]
+ *   - 不传参数时自动定位：HTML=tools/txcs-rule-generator.html，规则文件=rules/ 里日期最新的那份
+ *     （同日取「海盛和食品」那份；两文件规则集相同、仅 enabled 不同）
  * 从 tools/txcs-rule-generator.html 提取 <script id="core"> 核心逻辑，
  * 对 rules/ 真实规则文件跑断言（单测 + 端到端）。改完工具后必跑。
  * 注意：本脚本不能有 'use strict'（严格模式下 eval 不泄漏函数声明）；
  *       提取的 core 脚本里的 'use strict' 也必须剥掉。 */
 const fs = require('fs');
-const HTML_PATH  = '/mnt/e/Whale/tmcs_extension/tools/txcs-rule-generator.html';
-const RULES_PATH = '/mnt/e/Whale/tmcs_extension/rules/txcs-interceptor-rules - 海盛和食品0808.json';
+const path = require('path');
 
+const ROOT = path.resolve(__dirname, '../../..');          // 仓库根
+const HTML_PATH = process.argv[2] || path.join(ROOT, 'tools/txcs-rule-generator.html');
+const RULES_PATH = process.argv[3] || pickNewestRules();
+
+/** rules/ 下取日期最新的规则文件（文件名约定：{店铺}_{YYYYMMDD}_{序号}.json） */
+function pickNewestRules(){
+  const dir = path.join(ROOT, 'rules');
+  const files = fs.readdirSync(dir).filter(f => /_\d{8}_\d{2}\.json$/.test(f));
+  if (!files.length) throw new Error('rules/ 下没有 {店铺}_{YYYYMMDD}_{序号}.json 规则文件');
+  files.sort((a, b) => {
+    const ka = (a.match(/_(\d{8})_(\d{2})\.json$/) || []).slice(1).join('');
+    const kb = (b.match(/_(\d{8})_(\d{2})\.json$/) || []).slice(1).join('');
+    if (ka !== kb) return ka < kb ? -1 : 1;
+    return a.startsWith('海盛和') ? 1 : -1;                // 同一天优先海盛和
+  });
+  return path.join(dir, files[files.length - 1]);
+}
+
+console.log('工具 HTML: ' + HTML_PATH);
+console.log('规则文件 : ' + RULES_PATH);
 const html = fs.readFileSync(HTML_PATH, 'utf8');
 const m = html.match(/<script id="core">([\s\S]*?)<\/script>/);
 if (!m){ console.error('✗ 找不到 core 脚本'); process.exit(1); }
@@ -66,13 +87,19 @@ const g4 = generateRule(sycm, T);
 check('生意参谋 alias', g4.alias === '生意参谋-26年9月', g4.alias);
 check('生意参谋 dateRange 联动', g4.pattern.indexOf('dateRange=2026-09') !== -1, g4.pattern);
 check('微信小店 alias', generateRule(rules.find(r => r.alias === '微信小店2604'), T).alias === '微信小店2609', '');
-const tax = rules.find(r => r.alias === '26.3-01');
-if (tax) check('电子税务局 alias', generateRule(tax, T).alias === '26.9-01', '');
+/* 电子税务局：2026-08 起 alias 由 '26.3-01' 改为 '{店铺}-26年3月-增值税及附加税费申报表' */
+const TAX_ALIAS = '海盛和食品-26年3月-增值税及附加税费申报表';
+const TAX_ALIAS_NEW = '海盛和食品-26年9月-增值税及附加税费申报表';
+const tax = rules.find(r => r.alias === TAX_ALIAS);
+check('电子税务局规则存在（alias 未再改名的回归）', !!tax, tax ? '' : '找不到 ' + TAX_ALIAS);
+check('电子税务局 alias', !!tax && generateRule(tax, T).alias === TAX_ALIAS_NEW,
+  tax ? generateRule(tax, T).alias : '(跳过：规则缺失)');
 
 /* ── 6. extractMonthOf 抽查 ── */
 check('extractMonthOf 猫超 26年6月', JSON.stringify(extractMonthOf(mc)) === '{"y":2026,"m":6}', '');
 check('extractMonthOf 生意参谋 2位年', JSON.stringify(extractMonthOf(sycm)) === '{"y":2026,"m":4}', JSON.stringify(extractMonthOf(sycm)));
-check('extractMonthOf 电子税 26.3-01', JSON.stringify(extractMonthOf(tax)) === '{"y":2026,"m":3}', '');
+check('extractMonthOf 电子税 26年3月', !!tax && JSON.stringify(extractMonthOf(tax)) === '{"y":2026,"m":3}',
+  tax ? JSON.stringify(extractMonthOf(tax)) : '(跳过：规则缺失)');
 
 /* ── 7. 指标速填（京麦 8 指标） ── */
 const dm = detectMetrics(jdSum.response);

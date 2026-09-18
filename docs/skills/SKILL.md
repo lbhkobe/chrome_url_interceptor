@@ -46,7 +46,7 @@ Chrome MV3 扩展「TXCS URL Interceptor」，拦截京东/京麦、淘宝生意
 | 电子税务局 PDF → 规则 | references/electron-tax-pdf-mapping.md + templates/gen_tax_from_pdf.py + **交付前强制全量复核（见下）** |
 | 维护生成器工具/改核心算法 | references/generator-tool-architecture.md + scripts/test_txcs_gen.js |
 | 两公司规则文件镜像同步 | references/paired-rule-files.md |
-| 字段映射细节（猫超 7 列/京麦 8 指标/CN 翻译） | references/platform-fingerprints.md |
+| 字段映射细节（猫超**支付金额 13 字段（含 _lfl）／趋势表 7 列**、京麦 8 指标、CN 翻译） | references/platform-fingerprints.md |
 
 ## 每月例行流程（工具工作流）
 1. 打开 tools/txcs-rule-generator.html → 导入最新规则文件 → 自动识别模板组（按 pattern 归一化分组）
@@ -83,6 +83,7 @@ Chrome MV3 扩展「TXCS URL Interceptor」，拦截京东/京麦、淘宝生意
 - `{公司}_{YYYYMMDD}_{序号}.json`（如 `海盛和食品_20260810_01.json`）每个文件含两家全部规则，仅本公司 enabled=True（海盛和文件里蓝色海洋规则 enabled=False，反之亦然）；两文件同日序号一致
 - 改一边必须同步另一边 response（**逐字节一致，仅 enabled 不同**），同步后 `hsh[i]['response'] == blue[i]['response']` 逐索引验证；**只同步 response 字段**，保留目标文件 alias/pattern（两文件 alias 命名可能略异如 V2 前缀位置）
 - 文件名日期后缀可能被用户重命名（如 20260809_02 → 新约定 `店铺_YYYYMMDD_序号`），操作前先 ls 确认
+- **2026-09-18 现状：两文件 response 已 100% 一致（181/181），跨文件差异只剩 enabled**。原 idx174 缺口（蓝色海洋-26年3月-附列资料（二）份数：蓝海文件 59 / 海盛和文件 71）已用 **26 年 3 月原始申报表 PDF** 定夺 → PDF 份数 71 才对，已把蓝海侧改成 71（PDF 路径与教训见 references/paired-rule-files.md）
 - 详见 references/paired-rule-files.md
 
 ## 关键陷阱（跨场景通用）
@@ -101,5 +102,5 @@ Chrome MV3 扩展「TXCS URL Interceptor」，拦截京东/京麦、淘宝生意
 - references/electron-tax-pdf-mapping.md — 电子税务局 PDF↔规则映射 + 生成事故教训 + 全量复核流程
 - references/generator-tool-architecture.md — 生成器工具架构/核心算法（normalizePattern/extractMonthOf/generateRule/collectFormFields）/测试
 - references/paired-rule-files.md — 两公司镜像文件同步规则与核对法
-- scripts/test_txcs_gen.js — 核心单测+e2e（改工具必跑）；scripts/verify-core.js — 冒烟测试；scripts/test-core-scaffold.js — node 测试脚手架
-- scripts/tax-pdf-to-rules.py — 税务 PDF 一键生成脚本；templates/gen_tax_from_pdf.py — PDF→规则最终版模板
+- scripts/test_txcs_gen.js — 核心单测+e2e（**36 断言**，改工具必跑）；scripts/verify-core.js — 冒烟测试（13 模板组）；scripts/test-core-scaffold.js — node 测试脚手架（10 断言）。**三个脚本都路径无关**：直接 `node docs/skills/scripts/test_txcs_gen.js` 即可（默认 tools/txcs-rule-generator.html + rules/ 日期最新文件），也可传 `<HTML> <规则文件>`；旧版硬编码 `/mnt/e/Whale/tmcs_extension` 路径 2026-09 已废弃
+- scripts/tax-pdf-to-rules.py / templates/gen_tax_from_pdf.py — 税务 PDF→规则生成（三序列对齐 + **自洽/多重集双门禁**，不过门禁不写文件）：直接传 `.pdf` 即用（PyMuPDF word 坐标重建排版顺序，**本机没有 pdftotext/pdftoppm 也能跑**），传 `.txt` 走 pdftotext -layout 输出；页6 合计行仍需按电子税务局那份 reference 手工按列修正；**同月数据修订不要用它们**（走定向替换流程）

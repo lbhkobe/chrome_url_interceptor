@@ -85,7 +85,7 @@ const html = fs.readFileSync('tools/txcs-rule-generator.html', 'utf8');
 const m = html.match(/<script id="core">([\s\S]*?)<\/script>/);
 eval(m[1].replace(/'use strict';?\s*/g, ''));  // 必须剥 use strict，否则函数不泄漏
 // 测试脚本自身也不要有 'use strict'
-const rules = JSON.parse(fs.readFileSync('rules/txcs-interceptor-rules - 海盛和食品0808.json', 'utf8')).rules;
+const rules = JSON.parse(fs.readFileSync('rules/海盛和食品_20260918_01.json', 'utf8')).rules;   // 文件名随月份/序号变，用 glob 取最新更省事
 // 断言：buildGroups 组数/基底月份、generateRule 日期联动、code 不被误替换、
 // isMonthArrayResponse + insertMonthRow 行数/顺序、collectFormFields 字段数/写回、computeCompare
 ```

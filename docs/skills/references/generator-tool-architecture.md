@@ -10,7 +10,7 @@ URL query 中日期参数（date|startDate|endDate|dateRange|dateFrom|dateTo|biz
 ### extractMonthOf — 基底月份提取（顺序 fallback）
 1. `京麦(?:新版)?_?(\d{4})_` / `微信小店(\d{4})` → YYMM
 2. `(\d{2,4})年(\d{1,2})月` → 2 位年 +2000（**必须 2-4 位都收**：'26年1月' 用 4 位正则匹配不到 → 生意参谋曾整组分组失败）
-3. `(?:hsh?[- ])?(\d{2})\.(\d{1,2})-(\d{2}|total)`（电子税 26.3-01）
+3. `(?:hsh?[- ])?(\d{2})\.(\d{1,2})-(\d{2}|total)`（**历史命名**，如 `26.3-01`/`hsh-26.3-01`；2026-08 起 alias 改为 `{店铺}-{YY}年{M}月-{报表名}`，由规则 2 覆盖，本规则保留兼容旧文件）
 4. `startDate":"YYYY-MM`
 5. bodyPattern `"value":"YYYYMMDD"` 多行取**日期最大**（猫超：上月末+本月末两行，取本月）
 
@@ -27,7 +27,7 @@ URL query 中日期参数（date|startDate|endDate|dateRange|dateFrom|dateTo|biz
 - 微信小店：metaConfig.viewMap.*.viewLabel 优先做中文标签（viewMap.key == total.key）
 - 其他：CN_FIELD_MAP 子串匹配 + cnLabelFull 带口径后缀（_1d→日/_28d→28天/real_→实际/itm_→商品…）防重复标签
 - 跳过：metaConfig/tips 子树、长数组（trend）、非数字字符串；数字字符串（"6936"）可编辑
-- essential 精简模式：ESSENTIAL_FIELDS 白名单（猫超 7 列），按白名单顺序；无白名单接口强制 all
+- essential 精简模式：ESSENTIAL_FIELDS 白名单（**猫超支付金额 13 字段含 _lfl / 趋势表 7 列**——两者别混，见 references/platform-fingerprints.md），按白名单顺序；无白名单接口强制 all
 - applyFormValues 按 path 写回，类型保持（number/string）
 - computeCompare：同组上月规则逐字段 (cur-prev)/prev 写 `*_tb`；prev=0/空 → 留空
 - **function 限制模式**：数据用 `/*__DATA_START__*/…/*__DATA_END__*/` 标记内嵌，extractFnData/replaceFnData 提取/写回；更新模式插入月份行后保持 function 格式；「🔒 隐藏当前月」按钮把 static JSON 一键转 function（返回前 `filter(x => x.stat_date.slice(0,6) < 当前年月)`），去掉限制=responseType 改回 static
@@ -43,14 +43,15 @@ URL query 中日期参数（date|startDate|endDate|dateRange|dateFrom|dateTo|biz
 
 ## 测试方法
 1. node 读 HTML → `html.match(/<script id="core">([\s\S]*?)<\/script>/)` 提取 → **剥掉 'use strict' 后 eval**（严格模式下 eval 的函数声明不泄漏；测试脚本自身也不能有 'use strict'）
-2. 用真实规则文件跑 buildGroups + generateRule 断言（模式见 scripts/test_txcs_gen.js 33 断言、scripts/verify-core.js 模板组全量）
+2. 用真实规则文件跑 buildGroups + generateRule 断言（模式见 scripts/test_txcs_gen.js **36 断言**、scripts/verify-core.js 模板组全量 13 组）
+   - **三个脚本都是路径无关的**：默认 `HTML=tools/txcs-rule-generator.html`、规则文件=rules/ 下日期最新那份（同日取海盛和食品），也可 `node xxx.js <HTML> <规则文件>` 指定。直接 `node docs/skills/scripts/test_txcs_gen.js` 即可跑通（旧版硬编码 /mnt/e 路径已废弃，2026-09 修）
 3. UI 层语法：提取全部 script 写临时 .js 后 `node --check`（单文件 HTML 无 linter，write_file 不报 JS 错）
-4. DOM 行为验证：browser_navigate 打开 `file:///mnt/e/Whale/tmcs_extension/tools/txcs-rule-generator.html`；注入规则用临时 `_test_rules.js`（`window.__RULES__ = [...]`）+ `<script src>` 标签（file:// 页面 fetch 被 CORS 挡、script 标签不受限）；测完删除临时文件
+4. DOM 行为验证：browser_navigate 打开 `file:///mnt/d/Whale/chrome_url_interceptor/tools/txcs-rule-generator.html`（WSL 里为 `/mnt/d/Whale/chrome_url_interceptor/tools/txcs-rule-generator.html`）；注入规则用临时 `_test_rules.js`（`window.__RULES__ = [...]`）+ `<script src>` 标签（file:// 页面 fetch 被 CORS 挡、script 标签不受限）；测完删除临时文件
 5. 用户报告 UI 状态与代码不符：先 browser 复现（临时 script 注入真实规则，console 驱动 state/render）验证代码能否产生该状态；代码产生不了 → 大概率浏览器缓存旧版或 localStorage 旧数据 → Ctrl+F5 强刷 + 点「清空」重导
 
 ## 用户工作流约定（工具设计准则）
 - 每月更新：导入最新文件 → 模板组 → 勾选月份（京麦填 8 指标）→ 生成（绿色高亮）→ 表单改值 → 🔄计算环比 → 导出
-- 导出文件名 `txcs-interceptor-rules - {店铺}{MMDD}.json`（店铺从导入文件名解析）
+- 导出文件名 `{店铺}_{YYYYMMDD}_{序号}.json`（店铺从导入文件名解析；**MMDD 旧约定已废弃**，同日多次导出序号 01/02/03 递增）
 - 编辑规则默认「表单编辑」tab，JSON tab 保留；**用户强烈偏好表单配置，不要让他手写 JSON**（非程序员同事也在用）
 - 扩展 Import 按 pattern 去重合并 → 同接口新月份规则 pattern 相同会被跳过 → 导入前先清空扩展旧规则
 - tools/ 下可能存在并行会话产物 rule-generator.html/js（浅色 UI 拆分版，非本工具）—— 勿混淆勿误删
