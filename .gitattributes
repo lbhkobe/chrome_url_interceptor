@@ -1,0 +1,28 @@
+# ── 换行符策略（2026-09-18 统一）────────────────────────────────────────────
+# 默认：文本文件在仓库与工作区统一为 LF。
+# 这样即便 Windows 侧编辑器/工具把文件写成 CRLF，git status 也不会再刷出
+# 一堆「仅换行符差异」的假改动（历史上出现过 104 个文件同时 M 的情况）。
+* text=auto eol=lf
+
+# 拦截规则文件按项目约定保持 CRLF（1 空格缩进 + CRLF，工具导出/导入按此格式比对），
+# 标记为不转换 = 字节级保真，git 不会改写它们。
+rules/*.json -text
+
+# 二进制/压缩格式不做任何转换
+*.docx -text
+*.doc   -text
+*.xlsx -text
+*.xls  -text
+*.pptx -text
+*.pdf  -text
+*.png  -text
+*.jpg  -text
+*.jpeg -text
+*.gif  -text
+*.ico  -text
+*.zip  -text
+*.7z   -text
+*.exe  -text
+*.ttf  -text
+*.woff -text
+*.woff2 -text
